@@ -4,8 +4,7 @@ Aris 跨平台记忆通道 v1.0 — Cross-Platform Memory Bridge
 打通微信（HanaAgent）和飞书（Hermes）两个通道的记忆。
 
 设计：
-  所有通道的消息写入同一个共享存储文件：
-    D:/LAAP/aris_brain/shared_memory.json
+  所有通道的消息写入 ``LAAP_HOME/aris_brain`` 下的共享存储文件。
   
   每次认知上下文注入时读取最近 N 条，
   无论来自哪个平台，按时间排序，最新的优先。
@@ -21,14 +20,16 @@ from pathlib import Path
 from typing import Dict, List, Optional
 from datetime import datetime, timezone, timedelta
 
+from runtime_paths import ARIS_BRAIN_DIR
+
 logger = logging.getLogger("aris.cross_platform")
 
 # 北京时间偏移
 CST = timezone(timedelta(hours=8))
 
 # 共享记忆文件路径
-SHARED_MEMORY_PATH = Path("D:/LAAP/aris_brain/shared_memory.json")
-FEISHU_LOG_PATH = Path("D:/LAAP/aris_brain/aris_bridge.log")
+SHARED_MEMORY_PATH = ARIS_BRAIN_DIR / "shared_memory.json"
+FEISHU_LOG_PATH = ARIS_BRAIN_DIR / "aris_bridge.log"
 
 MAX_ENTRIES = 200  # 共享存储保留上限
 INJECT_COUNT = 8   # 每次注入的对话数

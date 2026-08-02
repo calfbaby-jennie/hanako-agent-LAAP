@@ -3,9 +3,9 @@
 
 检测：
 - Python 3.11+
-- Node.js 20+
+- Node.js >= 24.12.0, < 25
 - Git
-- pip 可用性
+- uv 或 pip 可用性
 - npm 可用性
 - 端口 2668/11521/8765 是否被占用
 - 环境变量 HANA_HOME / LAAP_HOME 是否已设置
@@ -33,7 +33,8 @@ REQUIRED_PORTS = [2668, 11521, 8765]
 
 # ── 版本要求 ──────────────────────────────────────────────────
 PYTHON_MIN = (3, 11)
-NODE_MIN = 20
+NODE_MIN = (24, 12, 0)
+NODE_MAX_MAJOR = 25
 
 
 def _run(cmd: List[str], timeout: float = 10.0) -> "subprocess.CompletedProcess[str] | None":
@@ -69,28 +70,29 @@ def check_python() -> Dict[str, Any]:
 
 
 def check_node() -> Dict[str, Any]:
-    """检测 Node.js 版本（>= 20）。"""
+    """检测 Node.js 版本（与 hanako/package.json engines 一致）。"""
     result = _run(["node", "--version"])
     if result is None or result.returncode != 0:
         return {
             "name": "Node.js",
             "status": "fail",
-            "detail": "未检测到 Node.js，请安装 Node.js 20+",
+            "detail": "未检测到 Node.js，请安装 Node.js >= 24.12.0, < 25",
         }
     raw = (result.stdout or "").strip().lstrip("v")
     try:
-        major = int(raw.split(".")[0])
+        parsed = tuple(int(part) for part in raw.split("-", 1)[0].split("."))
+        version = (parsed + (0, 0, 0))[:3]
     except (ValueError, IndexError):
         return {
             "name": "Node.js",
             "status": "fail",
             "detail": f"无法解析 Node.js 版本：{raw!r}",
         }
-    ok = major >= NODE_MIN
+    ok = version >= NODE_MIN and version[0] < NODE_MAX_MAJOR
     return {
         "name": "Node.js",
         "status": "ok" if ok else "fail",
-        "detail": f"当前 v{raw}，要求 >= v{NODE_MIN}",
+        "detail": f"当前 v{raw}，要求 >= v24.12.0, < v25",
         "version": raw,
     }
 
@@ -112,23 +114,38 @@ def check_git() -> Dict[str, Any]:
     }
 
 
-def check_pip() -> Dict[str, Any]:
-    """检测 pip 是否可用。"""
+def check_python_package_manager() -> Dict[str, Any]:
+    """检测 uv 或 pip 是否可用。
+
+    ``uv venv`` 默认不在环境中安装 pip，但 ``uv pip`` 仍可以直接
+    管理该环境，因此不应将“没有 pip”误报为安装失败。
+    """
+    uv_result = _run(["uv", "--version"])
+    if uv_result is not None and uv_result.returncode == 0:
+        version = (uv_result.stdout or "").strip().split("\n")[0]
+        return {
+            "name": "Python 包管理器",
+            "status": "ok",
+            "detail": version,
+            "provider": "uv",
+        }
+
     result = _run([sys.executable, "-m", "pip", "--version"])
     if result is None or result.returncode != 0:
         # 退而求其次：直接调用 pip
         result = _run(["pip", "--version"])
     if result is None or result.returncode != 0:
         return {
-            "name": "pip",
+            "name": "Python 包管理器",
             "status": "fail",
-            "detail": "pip 不可用，无法安装 Python 依赖",
+            "detail": "uv 和 pip 均不可用，无法安装 Python 依赖",
         }
     version = (result.stdout or "").strip().split("\n")[0]
     return {
-        "name": "pip",
+        "name": "Python 包管理器",
         "status": "ok",
         "detail": version,
+        "provider": "pip",
     }
 
 
@@ -180,7 +197,15 @@ def check_ports() -> List[Dict[str, Any]]:
 def check_env_vars() -> List[Dict[str, Any]]:
     """检测 HANA_HOME / LAAP_HOME 环境变量。"""
     results = []
-    for var in ("HANA_HOME", "LAAP_HOME"):
+    for var in (
+        "LAAP_ROOT",
+        "HANA_HOME",
+        "LAAP_HOME",
+        "LAAP_STATE_DIR",
+        "LAAP_CACHE_DIR",
+        "LAAP_LOGS_DIR",
+        "ARIS_BRAIN_DIR",
+    ):
         value = os.environ.get(var, "").strip()
         if value:
             results.append({
@@ -205,7 +230,7 @@ def run_all_checks() -> Dict[str, Any]:
         check_python(),
         check_node(),
         check_git(),
-        check_pip(),
+        check_python_package_manager(),
         check_npm(),
         *port_results,
         *env_results,

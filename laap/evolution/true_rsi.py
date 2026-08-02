@@ -20,7 +20,7 @@
 
     from laap.evolution.true_rsi import TrueRSIEngine, TrueRSIConfig
 
-    engine = TrueRSIEngine(repo_root="D:/LAAP")
+    engine = TrueRSIEngine(repo_root="/path/to/laap")
     proposal = engine.propose(directory="laap/tools/")
     if proposal:
         token = engine.request_approval(proposal)
@@ -600,7 +600,7 @@ class TrueRSIEngine:
 
     使用方式::
 
-        engine = TrueRSIEngine(TrueRSIConfig(repo_root="D:/LAAP"))
+        engine = TrueRSIEngine(TrueRSIConfig(repo_root="/path/to/laap"))
         results = engine.run_cycle(max_proposals=2)
         for r in results:
             print(r.proposal_id, r.status)
@@ -946,7 +946,7 @@ class RSISandbox:
     用法::
 
         from laap.evolution.true_rsi import RSISandbox
-        sandbox = RSISandbox(repo_root="D:/LAAP", agent_name="aris")
+        sandbox = RSISandbox(repo_root="/path/to/laap", agent_name="aris")
         candidate_id = sandbox.propose("laap/tools/example.py", 0.4)
         # ... 用户确认后 ...
         result = sandbox.decide(candidate_id, "adopt")

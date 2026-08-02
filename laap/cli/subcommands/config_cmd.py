@@ -12,7 +12,9 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-CONFIG_DIR = Path("D:/LAAP/aris_brain")
+from laap.config.paths import get_aris_brain_dir
+
+CONFIG_DIR = get_aris_brain_dir()
 CONFIG_FILE = CONFIG_DIR / "laap_config.json"
 ENV_FILE = CONFIG_DIR / ".env"
 

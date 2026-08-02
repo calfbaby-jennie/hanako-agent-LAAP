@@ -28,20 +28,34 @@ import logging
 import logging.handlers
 import socket
 import threading
+from pathlib import Path
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
 
 import numpy as np
 
-# P2-birth-ceremony: 本地身份注册表 stub 路径
-# P3 identity-pki 完成后改为分布式身份注册表（spec L271-280）
-SIDECAR_DIR = os.path.dirname(os.path.abspath(__file__))
-HANAKO_ROOT = os.path.dirname(os.path.dirname(SIDECAR_DIR))
-IDENTITY_REGISTRY_PATH = os.path.join(HANAKO_ROOT, "data", "identity_registry.json")
-STATE_DIR = os.path.join(SIDECAR_DIR, "state")
-LOG_DIR = os.path.join(STATE_DIR, "logs")
-LOCK_PATH = os.path.join(STATE_DIR, "aris-sidecar.lock")
-TOKEN_PATH = os.path.join(STATE_DIR, "aris-sidecar.token")
+# Bootstrap the checkout before importing the shared path resolver.  From
+# ``hanako/aris-bridge/aris-engine/sidecar.py`` the project root is derived
+# from the parent chain unless LAAP_ROOT is explicitly provided.
+SIDECAR_DIR_PATH = Path(__file__).resolve().parent
+_derived_laap_root = SIDECAR_DIR_PATH.parents[2]
+_laap_root_path = Path(os.environ.get("LAAP_ROOT", _derived_laap_root)).expanduser().resolve()
+if str(_laap_root_path) not in sys.path:
+    sys.path.insert(1, str(_laap_root_path))
+
+from laap.config.paths import get_hana_home, get_laap_home, get_state_dir
+
+SIDECAR_DIR = str(SIDECAR_DIR_PATH)
+HANAKO_ROOT = str(SIDECAR_DIR_PATH.parents[1])
+
+# P2-birth-ceremony: persistent identity and sidecar state are user data, not
+# mutable files inside the source checkout.
+IDENTITY_REGISTRY_PATH = str(get_hana_home() / "identity_registry.json")
+_sidecar_state_dir = get_state_dir() / "aris-sidecar"
+STATE_DIR = str(_sidecar_state_dir)
+LOG_DIR = str(_sidecar_state_dir / "logs")
+LOCK_PATH = str(_sidecar_state_dir / "aris-sidecar.lock")
+TOKEN_PATH = str(_sidecar_state_dir / "aris-sidecar.token")
 
 # ── 认证与安全配置 ──────────────────────────────────────────────
 HOST = "127.0.0.1"  # 生产：绝不监听 0.0.0.0（v1.1 安全加固）
@@ -89,11 +103,9 @@ SIDECAR_TOKEN = _load_or_create_token()
 _PENDING_PRIVATE_KEYS: dict = {}
 
 # 精确定位 LAAP 模块路径（插在第二位，不覆盖本地模块）
-# 1) laap 包父目录（D:/LAAP）— 供 `import laap.memory_vault` 等包级导入
+# 1) laap 包父目录 — 供 `import laap.memory_vault` 等包级导入
 # 2) laap/agi 子目录 — 供 `import conscious` 等模块级导入
-_laap_root = r"D:/LAAP"
-if os.path.isdir(_laap_root) and _laap_root not in sys.path:
-    sys.path.insert(1, _laap_root)
+_laap_root = str(_laap_root_path)
 _laap_agi = os.path.join(_laap_root, "laap", "agi")
 if os.path.isdir(_laap_agi) and _laap_agi not in sys.path:
     sys.path.append(_laap_agi)
@@ -1690,11 +1702,11 @@ class ArisSidecarHandler(BaseHTTPRequestHandler):
             agent_name = (data.get("agent_name", "") or "").strip()
             limit = int(data.get("limit", 20))
             try:
-                # 1. 守护模式（.guardian_mode 在 LAAP 根目录）
+                # 1. 守护模式（持久化在 LAAP_HOME）
                 mode_info = {"mode": "unknown", "history": [], "updated": None}
-                mode_path = os.path.join(HANAKO_ROOT, ".guardian_mode")
+                mode_path = str(get_laap_home() / ".guardian_mode")
                 if not os.path.isfile(mode_path):
-                    # 回退：LAAP 根目录（D:/LAAP/.guardian_mode）
+                    # 兼容旧版源码目录中的状态文件
                     laap_root = os.path.dirname(HANAKO_ROOT)
                     candidate = os.path.join(laap_root, ".guardian_mode")
                     if os.path.isfile(candidate):

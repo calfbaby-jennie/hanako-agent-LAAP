@@ -26,6 +26,8 @@ from collections import defaultdict, deque
 from enum import Enum
 import numpy as np
 
+from laap.config.paths import get_aris_brain_dir
+
 logger = logging.getLogger("laap.agi.meta_learning")
 
 
@@ -512,8 +514,9 @@ class MetaLearningEngine:
             "efficiency_7d": self.get_learning_efficiency(days=7),
         }
 
-    def save(self, path: str = "D:/LAAP/aris_brain/state/meta_learning.json"):
+    def save(self, path: str | Path | None = None):
         """持久化元学习状态"""
+        path = Path(path) if path is not None else get_aris_brain_dir() / "state" / "meta_learning.json"
         data = {
             "sessions": [s.to_dict() for s in self.sessions[-100:]],  # 只保留最近100条
             "strategy_efficacy": {k: v.to_dict() for k, v in self.strategy_efficacy.items()},
@@ -527,8 +530,9 @@ class MetaLearningEngine:
                               encoding="utf-8")
         logger.info(f"[MetaLearningEngine] 保存到 {path}")
 
-    def load(self, path: str = "D:/LAAP/aris_brain/state/meta_learning.json"):
+    def load(self, path: str | Path | None = None):
         """加载元学习状态"""
+        path = Path(path) if path is not None else get_aris_brain_dir() / "state" / "meta_learning.json"
         p = Path(path)
         if not p.exists():
             return False

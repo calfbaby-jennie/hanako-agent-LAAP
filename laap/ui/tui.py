@@ -487,7 +487,9 @@ def _load_mcp_tools() -> List[Tuple[str, str, str]]:
 def _load_skills() -> Dict[str, List[str]]:
     """Return skills grouped by category."""
     by_cat: Dict[str, List[str]] = {}
-    skills_dir = Path("d:/LAAP/.laap/skills")
+    from laap.config.paths import get_laap_home
+
+    skills_dir = get_laap_home() / "skills"
     if skills_dir.is_dir():
         for entry in skills_dir.iterdir():
             if entry.is_dir():

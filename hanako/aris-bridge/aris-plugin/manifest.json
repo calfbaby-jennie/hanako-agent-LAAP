@@ -62,8 +62,8 @@
         "arisAgentDir": {
           "type": "string",
           "title": "Aris agent 目录",
-          "description": "Aris agent 绝对路径（含 memory/、dm/、channels.md 等）。默认 d:/LAAP/hanako/agents/aris。",
-          "default": "d:/LAAP/hanako/agents/aris",
+          "description": "Aris agent 目录（含 memory/、dm/、channels.md 等）。留空时使用 HANA_HOME/agents/aris。",
+          "default": "",
           "ui": { "control": "text" }
         },
         "arisDefaultChannel": {

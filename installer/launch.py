@@ -24,7 +24,7 @@ import subprocess
 import sys
 import time
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 # ── 路径定位 ──────────────────────────────────────────────────
 INSTALLER_DIR = Path(__file__).parent.resolve()
@@ -34,6 +34,53 @@ LAAP_ROOT = INSTALLER_DIR.parent
 MCP_SERVER_SCRIPT = LAAP_ROOT / "scripts" / "laap_cognitive_mcp.py"
 SIDECAR_SCRIPT = LAAP_ROOT / "hanako" / "aris-bridge" / "aris-engine" / "sidecar.py"
 HANAKO_DIR = LAAP_ROOT / "hanako"
+
+
+def build_runtime_env(base_env: Optional[Dict[str, str]] = None) -> Dict[str, str]:
+    """Build one canonical environment for every LAAP/Hanako child process.
+
+    ``HOME`` remains owned by the operating system.  Project code, LAAP data,
+    and Hanako data use separate explicit variables so launching from Finder,
+    an IDE, or a shell resolves the same locations.
+    """
+    env = dict(base_env if base_env is not None else os.environ)
+    user_home = Path.home()
+    laap_home = Path(env.get("LAAP_HOME", user_home / ".laap")).expanduser().resolve()
+    hana_home = Path(env.get("HANA_HOME", user_home / ".hana")).expanduser().resolve()
+
+    env.setdefault("LAAP_ROOT", str(LAAP_ROOT))
+    env["LAAP_HOME"] = str(laap_home)
+    env["HANA_HOME"] = str(hana_home)
+    env.setdefault("LAAP_STATE_DIR", str(laap_home / "state"))
+    env.setdefault("LAAP_CACHE_DIR", str(laap_home / "cache"))
+    env.setdefault("LAAP_LOGS_DIR", str(laap_home / "logs"))
+    env.setdefault("ARIS_BRAIN_DIR", str(laap_home / "aris_brain"))
+    env.setdefault("LAAP_PYTHON", sys.executable)
+
+    existing_pythonpath = env.get("PYTHONPATH", "")
+    pythonpath_entries = [entry for entry in existing_pythonpath.split(os.pathsep) if entry]
+    if str(LAAP_ROOT) not in pythonpath_entries:
+        pythonpath_entries.insert(0, str(LAAP_ROOT))
+    env["PYTHONPATH"] = os.pathsep.join(pythonpath_entries)
+
+    return env
+
+
+def ensure_runtime_dirs(env: Optional[Dict[str, str]] = None) -> None:
+    """Create writable runtime directories immediately before launching."""
+    runtime_env = env or RUNTIME_ENV
+    for path_var in (
+        "LAAP_HOME",
+        "HANA_HOME",
+        "LAAP_STATE_DIR",
+        "LAAP_CACHE_DIR",
+        "LAAP_LOGS_DIR",
+        "ARIS_BRAIN_DIR",
+    ):
+        Path(runtime_env[path_var]).mkdir(parents=True, exist_ok=True)
+
+
+RUNTIME_ENV = build_runtime_env()
 
 # ── 端口定义（与 check_env.py 保持一致）──────────────────────
 PORT_COGNITIVE_BUS = 2668   # Hanako 后端 / CognitiveBus
@@ -108,6 +155,7 @@ class ProcessManager:
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
                 cwd=str(cwd) if cwd else None,
+                env=RUNTIME_ENV,
             )
             if os.name == "nt":
                 kwargs["creationflags"] = subprocess.CREATE_NO_WINDOW
@@ -164,7 +212,6 @@ def start_sidecar(pm: ProcessManager) -> Optional[subprocess.Popen]:
         print(f"  [SKIP] sidecar 脚本不存在：{SIDECAR_SCRIPT}")
         return None
     cmd = [_python(), str(SIDECAR_SCRIPT)]
-    # sidecar 内部把 D:/LAAP 写入 sys.path，cwd 设为脚本所在目录
     return pm.start_background(cmd, cwd=SIDECAR_SCRIPT.parent, name="Aris sidecar")
 
 
@@ -181,8 +228,12 @@ def start_hanako_desktop() -> int:
     print()
     try:
         # 前台运行：继承 stdio，用户可直接交互
-        return subprocess.call(["npm", "run", "start"], cwd=str(HANAKO_DIR),
-                               shell=os.name == "nt")
+        return subprocess.call(
+            ["npm", "run", "start"],
+            cwd=str(HANAKO_DIR),
+            env=RUNTIME_ENV,
+            shell=os.name == "nt",
+        )
     except KeyboardInterrupt:
         print("\n  收到中断信号，正在退出...")
         return 0
@@ -200,6 +251,7 @@ def start_all() -> int:
     if not check_ports():
         return 1
 
+    ensure_runtime_dirs()
     pm = ProcessManager()
 
     # 注册信号处理：CtrlC 时清理后台进程

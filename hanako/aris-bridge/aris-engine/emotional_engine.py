@@ -28,6 +28,8 @@ import numpy as np
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
+from runtime_paths import SIDECAR_STATE_DIR
+
 logger = logging.getLogger("aris.emotional_engine")
 
 # ── 8 情绪定义 ─────────────────────────────────────────────
@@ -314,7 +316,7 @@ class EmotionalEngine:
 
     def save(self, path: Optional[str] = None):
         if path is None:
-            path = Path(__file__).parent / "state" / "emotion_state.json"
+            path = SIDECAR_STATE_DIR / "emotion_state.json"
         path = Path(path)
         path.parent.mkdir(parents=True, exist_ok=True)
         data = {
@@ -327,7 +329,7 @@ class EmotionalEngine:
 
     def load(self, path: Optional[str] = None):
         if path is None:
-            path = Path(__file__).parent / "state" / "emotion_state.json"
+            path = SIDECAR_STATE_DIR / "emotion_state.json"
         path = Path(path)
         if not path.exists():
             return False

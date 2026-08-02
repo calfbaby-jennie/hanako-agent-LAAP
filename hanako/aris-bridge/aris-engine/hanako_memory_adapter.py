@@ -79,7 +79,7 @@ class HanakoMemoryReader:
     def __init__(self, agent_dir: str):
         """
         Args:
-            agent_dir: hanako agent 根目录（例如 d:/LAAP/hanako/agents/aris）
+            agent_dir: Hanako agent 根目录（通常来自 HANA_HOME/agents/aris）
         """
         self.agent_dir = Path(agent_dir)
         self.memory_dir = self.agent_dir / "memory"
@@ -215,7 +215,7 @@ class HanakoMemoryWriter:
     def __init__(self, agent_dir: str):
         """
         Args:
-            agent_dir: hanako agent 根目录（例如 d:/LAAP/hanako/agents/aris）
+            agent_dir: Hanako agent 根目录（通常来自 HANA_HOME/agents/aris）
         """
         self.agent_dir = Path(agent_dir)
         self.memory_dir = self.agent_dir / "memory"

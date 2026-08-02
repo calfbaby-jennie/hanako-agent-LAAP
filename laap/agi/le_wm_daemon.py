@@ -26,14 +26,23 @@ from datetime import datetime, timedelta
 
 import numpy as np
 
-sys.path.insert(0, 'D:/LAAP')
+from laap.config.paths import get_laap_home, get_laap_root, get_logs_dir
+
+sys.path.insert(0, str(get_laap_root()))
+
+_DATA_DIR = str(get_laap_home() / "data" / "le_wm_training_data")
+_MODEL_DIR = str(get_laap_home() / "models" / "le_wm")
+_LOG_DIR = get_logs_dir()
+_LOG_DIR.mkdir(parents=True, exist_ok=True)
+_STATE_DIR = str(get_laap_home() / "state")
+_DASHBOARD_PATH = str(get_laap_home() / "le_wm_dashboard.html")
 
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s [%(name)s] %(levelname)s: %(message)s',
     handlers=[
         logging.StreamHandler(),
-        logging.FileHandler('D:/LAAP/logs/le_wm_daemon.log', mode='a'),
+        logging.FileHandler(_LOG_DIR / 'le_wm_daemon.log', mode='a'),
     ]
 )
 logger = logging.getLogger('le_wm_daemon')
@@ -45,12 +54,12 @@ logger = logging.getLogger('le_wm_daemon')
 
 @dataclass
 class DaemonConfig:
-    pid_file: str = 'D:/LAAP/state/le_wm_daemon.pid'
-    state_file: str = 'D:/LAAP/state/le_wm_daemon_state.json'
-    data_dir: str = 'D:/LAAP/data/le_wm_training_data'
-    model_dir: str = 'D:/LAAP/models/le_wm'
-    dashboard_path: str = 'D:/LAAP/le_wm_dashboard.html'
-    log_path: str = 'D:/LAAP/logs/le_wm_daemon.log'
+    pid_file: str = str(Path(_STATE_DIR) / 'le_wm_daemon.pid')
+    state_file: str = str(Path(_STATE_DIR) / 'le_wm_daemon_state.json')
+    data_dir: str = _DATA_DIR
+    model_dir: str = _MODEL_DIR
+    dashboard_path: str = _DASHBOARD_PATH
+    log_path: str = str(_LOG_DIR / 'le_wm_daemon.log')
     
     # 收集设置
     collect_interval_ms: int = 100  # 每隔 N 个 PSI 周期收集一次

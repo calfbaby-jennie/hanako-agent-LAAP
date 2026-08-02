@@ -16,11 +16,13 @@ from pathlib import Path
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass, field, asdict
 
-ENGINE_DIR = Path(__file__).parent
-RSI_STATE = ENGINE_DIR / "state" / "rsi_state.json"
-RSI_HISTORY = ENGINE_DIR / "state" / "rsi_history.jsonl"
-PARAM_DEFS = ENGINE_DIR / "state" / "rsi_params.json"
-SNAPSHOT_DIR = ENGINE_DIR / "state" / "snapshots"
+from runtime_paths import SIDECAR_STATE_DIR
+
+ENGINE_DIR = SIDECAR_STATE_DIR
+RSI_STATE = ENGINE_DIR / "rsi_state.json"
+RSI_HISTORY = ENGINE_DIR / "rsi_history.jsonl"
+PARAM_DEFS = ENGINE_DIR / "rsi_params.json"
+SNAPSHOT_DIR = ENGINE_DIR / "snapshots"
 
 SNAPSHOT_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -81,7 +83,7 @@ class RsiEvaluator:
 
     def __init__(self, engine_dir: Path = ENGINE_DIR):
         self.engine_dir = engine_dir
-        self.state_dir = engine_dir / "state"
+        self.state_dir = engine_dir
 
     def evaluate(self) -> Dict[str, float]:
         """执行一轮完整评估，返回各项分数"""

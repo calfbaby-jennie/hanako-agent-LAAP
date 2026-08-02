@@ -10,6 +10,11 @@ import speech_recognition as sr
 import subprocess, os, sys, time, json, urllib.request, tempfile
 from pathlib import Path
 
+from laap.config.paths import get_cache_dir
+
+AUDIO_CACHE_DIR = get_cache_dir() / "audio_cache"
+AUDIO_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+
 # ── 配置 ──
 MIC_INDEX = 1  # ME6S
 TTS_API = "http://127.0.0.1:18880/v1/audio/speech"
@@ -48,7 +53,7 @@ def speak(text: str):
         resp = urllib.request.urlopen(req, timeout=30)
         audio = resp.read()
 
-        tmp = "C:/Users/user/AppData/Local/hermes/audio_cache/lafei_says.mp3"
+        tmp = str(AUDIO_CACHE_DIR / "lafei_says.mp3")
         with open(tmp, "wb") as f:
             f.write(audio)
         subprocess.Popen(
@@ -65,7 +70,7 @@ def listen_once() -> str | None:
             audio = recognizer.listen(source, timeout=3, phrase_time_limit=10)
         # 保存临时 WAV 供 Whisper 识别
         wav_data = audio.get_wav_data()
-        tmp = "C:/Users/user/AppData/Local/hermes/audio_cache/mic_input.wav"
+        tmp = str(AUDIO_CACHE_DIR / "mic_input.wav")
         with open(tmp, "wb") as f:
             f.write(wav_data)
         result = whisper_model.transcribe(tmp, language="zh")

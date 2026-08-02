@@ -10,13 +10,12 @@ SDK 入口：
 __version__ = "5.0.0"
 
 # ── SDK 核心 API (轻量导入) ──────────────────────────────────────────
-from laap.sdk.client import AetherClient          # Client 模式：挂载到外部 Agent
-from laap.sdk.runtime import LAAPRuntime          # Framework 模式：独立运行全套 LAAP
-
 # ── 框架核心 (按需导入，惰性加载) ─────────────────────────────────────
 def __getattr__(name):
     """Lazy import for framework core to keep SDK import lightning-fast."""
     _lazy = {
+        "AetherClient":     "laap.sdk.client",
+        "LAAPRuntime":      "laap.sdk.runtime",
         "ActorSystem":       "laap.orchestration.actor",
         "AgentCell":         "laap.orchestration.actor",
         "PetriNet":          "laap.orchestration.petri",

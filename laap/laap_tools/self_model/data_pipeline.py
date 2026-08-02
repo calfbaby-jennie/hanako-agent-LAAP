@@ -40,20 +40,18 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 
+from laap.config.paths import get_aris_brain_dir, get_laap_home
+
 logger = logging.getLogger("laap.self_model.data_pipeline")
 
 # ── 路径常量 ───────────────────────────────────────────────────
-_ARIS_BRAIN_DIR = "D:/LAAP/aris_brain/self_model"
-_DATA_DIR = os.path.join(_ARIS_BRAIN_DIR, "training_data/")
+_ARIS_BRAIN_DIR = str(get_aris_brain_dir() / "self_model")
+_DATA_DIR = os.path.join(_ARIS_BRAIN_DIR, "training_data")
 
 # Hermes 钩子目录
-_DEFAULT_HOOK_DIR = os.path.expanduser(
-    "~/AppData/Local/hermes/profiles/aris/hooks/"
-)
+_DEFAULT_HOOK_DIR = str(get_laap_home() / "hermes" / "profiles" / "aris" / "hooks")
 # Hermes session 目录
-_DEFAULT_SESSION_DIR = os.path.expanduser(
-    "~/AppData/Local/hermes/profiles/aris/sessions/"
-)
+_DEFAULT_SESSION_DIR = str(get_laap_home() / "hermes" / "profiles" / "aris" / "sessions")
 
 
 @dataclass
@@ -140,11 +138,11 @@ class SelfModelDataPipeline:
         """
         从 Hermes 的 before_turn / after_turn 钩子中提取数据。
 
-        钩子目录位于 ~/AppData/Local/hermes/profiles/aris/hooks/。
+        钩子目录位于 LAAP_HOME/hermes/profiles/aris/hooks/。
         钩子日志应包含 CognitiveBus 状态快照 JSON。
 
         Args:
-            hook_dir: 钩子目录路径，默认使用 ~/AppData/Local/hermes/profiles/aris/hooks/
+            hook_dir: 钩子目录路径，默认使用 LAAP_HOME/hermes/profiles/aris/hooks/
 
         Returns:
             收集到的样本数

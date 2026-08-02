@@ -230,7 +230,9 @@ def cmd_inspect():
     print()
 
     # LAAP 路径
-    laap_root = Path("D:/LAAP")
+    from runtime_paths import LAAP_ROOT
+
+    laap_root = LAAP_ROOT
     print(f"  📁 LAAP 根目录: {laap_root}")
     print(f"     存在: {'✅' if laap_root.exists() else '❌'}")
 

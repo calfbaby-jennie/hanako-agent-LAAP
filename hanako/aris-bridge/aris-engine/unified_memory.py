@@ -30,7 +30,9 @@ from typing import Dict, List, Optional, Any, Tuple
 from dataclasses import dataclass, field, asdict
 from collections import defaultdict
 
-UNIFIED_DIR = Path(__file__).parent / "memory"
+from runtime_paths import SIDECAR_STATE_DIR
+
+UNIFIED_DIR = SIDECAR_STATE_DIR / "memory"
 UNIFIED_DIR.mkdir(parents=True, exist_ok=True)
 
 # ── 子目录 ──

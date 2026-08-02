@@ -28,7 +28,9 @@ from typing import Dict, List, Optional, Tuple, Any
 from dataclasses import dataclass, field
 
 # 添加 LAAP 模块路径
-_laap_agi = r"D:/LAAP/laap/agi"
+from runtime_paths import LAAP_AGI_DIR
+
+_laap_agi = str(LAAP_AGI_DIR)
 if os.path.isdir(_laap_agi) and _laap_agi not in sys.path:
     sys.path.append(_laap_agi)
 

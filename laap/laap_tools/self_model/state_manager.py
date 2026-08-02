@@ -26,10 +26,12 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 
+from laap.config.paths import get_aris_brain_dir
+
 logger = logging.getLogger("laap.self_model.state_manager")
 
 # ── 路径常量 ───────────────────────────────────────────────────
-_ARIS_BRAIN_DIR = "D:/LAAP/aris_brain/self_model"
+_ARIS_BRAIN_DIR = str(get_aris_brain_dir() / "self_model")
 _STATE_FILE = os.path.join(_ARIS_BRAIN_DIR, "state.pt")    # 未来 torch 格式
 _META_FILE = os.path.join(_ARIS_BRAIN_DIR, "meta.json")    # 轻量元数据
 _DATA_DIR = os.path.join(_ARIS_BRAIN_DIR, "training_data/")  # 训练数据目录

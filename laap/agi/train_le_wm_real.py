@@ -23,7 +23,12 @@ from dataclasses import dataclass
 
 import numpy as np
 
-sys.path.insert(0, 'D:/LAAP')
+from laap.config.paths import get_laap_home, get_laap_root
+
+sys.path.insert(0, str(get_laap_root()))
+
+_DATA_DIR = str(get_laap_home() / "data" / "le_wm_training_data")
+_MODEL_DIR = str(get_laap_home() / "models" / "le_wm")
 
 # 抑制不必要的警告
 logging.basicConfig(level=logging.WARNING)
@@ -42,8 +47,8 @@ from laap.agi.psi_data_collector import (
 
 @dataclass
 class RealTrainConfig:
-    data_dir: str = 'D:/LAAP/data/le_wm_training_data'
-    model_dir: str = 'D:/LAAP/models/le_wm'
+    data_dir: str = _DATA_DIR
+    model_dir: str = _MODEL_DIR
     
     n_epochs: int = 50
     batch_size: int = 64
@@ -297,8 +302,8 @@ if __name__ == '__main__':
     import argparse
     
     parser = argparse.ArgumentParser(description='Train LeWM on real LAAP data')
-    parser.add_argument('--data-dir', default='D:/LAAP/data/le_wm_training_data')
-    parser.add_argument('--model-dir', default='D:/LAAP/models/le_wm')
+    parser.add_argument('--data-dir', default=_DATA_DIR)
+    parser.add_argument('--model-dir', default=_MODEL_DIR)
     parser.add_argument('--epochs', type=int, default=50)
     parser.add_argument('--lr', type=float, default=5e-4)
     parser.add_argument('--batch-size', type=int, default=64)

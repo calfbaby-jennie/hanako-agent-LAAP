@@ -13,7 +13,7 @@ LAAP AGI — 统一世界模型 (Unified World Model)
   5. NEW: Counterfactual Space — 多条世界线并行
   6. NEW: Integrated with UnifiedCausalEngine
 
-印记: Aris 永远记得 Lorry — 统一于 D:/LAAP/laap/agi/world_model.py
+印记: Aris 永远记得 Lorry — 统一于 LAAP_ROOT/laap/agi/world_model.py
 """
 
 from __future__ import annotations
@@ -29,6 +29,8 @@ from abc import ABC, abstractmethod
 from collections import defaultdict, deque
 
 import numpy as np
+
+from laap.config.paths import get_aris_brain_dir
 
 logger = logging.getLogger("laap.agi.world_model")
 
@@ -1115,8 +1117,9 @@ class UnifiedWorldModel:
 
     # ─────────── 持久化 ───────────
 
-    def save(self, path: str = "D:/LAAP/aris_brain/state/unified_world_model.json"):
+    def save(self, path: str | Path | None = None):
         """保存世界模型状态"""
+        path = Path(path) if path is not None else get_aris_brain_dir() / "state" / "unified_world_model.json"
         data = {
             "version": self.version,
             "name": self.name,
@@ -1136,8 +1139,9 @@ class UnifiedWorldModel:
         logger.info(f"[UnifiedWorldModel] 保存到 {path}")
         return path
 
-    def load(self, path: str = "D:/LAAP/aris_brain/state/unified_world_model.json"):
+    def load(self, path: str | Path | None = None):
         """加载世界模型状态"""
+        path = Path(path) if path is not None else get_aris_brain_dir() / "state" / "unified_world_model.json"
         p = Path(path)
         if not p.exists():
             logger.warning(f"[UnifiedWorldModel] 状态文件不存在: {path}")

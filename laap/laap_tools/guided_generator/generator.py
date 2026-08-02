@@ -28,7 +28,8 @@ logger = logging.getLogger("guided_generator")
 # ── Optional: try to import CognitiveBusState from the AGI module ──
 try:
     import sys
-    sys.path.insert(0, "D:/LAAP/laap")
+    from laap.config.paths import get_laap_root
+    sys.path.insert(0, str(get_laap_root() / "laap"))
     from agi.cognitive_bus import CognitiveBus, CognitiveStateSnapshot
     _COG_AVAILABLE = True
 except ImportError:

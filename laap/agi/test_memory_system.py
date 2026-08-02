@@ -4,7 +4,9 @@ Test script for LAAP AGI Memory System
 
 import time
 import sys
-sys.path.insert(0, "D:\\LAAP")
+from laap.config.paths import get_laap_root
+
+sys.path.insert(0, str(get_laap_root()))
 
 from laap.agi.memory_system import (
     MemoryType,

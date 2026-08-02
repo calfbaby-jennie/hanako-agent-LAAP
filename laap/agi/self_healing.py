@@ -44,6 +44,7 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple, Callable
 from enum import Enum
 import time, logging, os, sys, json, re, threading, hashlib
+from laap.config.paths import get_laap_root
 from pathlib import Path
 from collections import defaultdict
 
@@ -268,7 +269,7 @@ class FixGenerator:
     """Generates targeted fixes for detected bugs."""
 
     def __init__(self, repo_root: str = ""):
-        self.repo_root = repo_root or os.environ.get("LAAP_ROOT", r"D:\LAAP")
+        self.repo_root = repo_root or str(get_laap_root())
         self.fixes_generated = 0
 
     def generate_fix(self, bug: BugReport) -> Optional[FixAttempt]:
@@ -316,7 +317,7 @@ class FixGenerator:
                 f"# Bug: {bug.message}\n"
                 f"# Add to file: {bug.file_path}\n"
                 f"import sys, os\n"
-                f"sys.path.insert(0, os.environ.get('LAAP_ROOT', r'D:\\LAAP'))\n"
+                f"sys.path.insert(0, os.environ.get('LAAP_ROOT') or os.getcwd())\n"
             )
         return "SKIP: non-LAAP module"
 
@@ -393,7 +394,7 @@ class AutoHealer:
                  auto_deploy: bool = False):
         self.monitor = ErrorMonitor()
         self.fixer = FixGenerator(repo_root)
-        self.repo_root = repo_root or os.environ.get("LAAP_ROOT", r"D:\LAAP")
+        self.repo_root = repo_root or str(get_laap_root())
         self.auto_deploy = auto_deploy
 
         self.fix_history: List[FixAttempt] = []
@@ -501,7 +502,7 @@ class AutoHealer:
 
 def integrate_self_healing(agent) -> AutoHealer:
     healer = AutoHealer(
-        repo_root=os.environ.get("LAAP_ROOT", r"D:\LAAP"),
+        repo_root=str(get_laap_root()),
         auto_deploy=False,  # Conservative: manual review first
     )
     agent.self_healing = healer

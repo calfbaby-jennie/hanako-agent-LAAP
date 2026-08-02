@@ -14,6 +14,7 @@ import json
 import os
 import sys
 import time
+from laap.config.paths import get_laap_root
 from datetime import datetime
 
 
@@ -153,7 +154,7 @@ def main():
     args = parser.parse_args()
 
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    sys.path.insert(0, "D:/LAAP")
+    sys.path.insert(0, str(get_laap_root()))
 
     from laap.lifeform.lifeform import Lifeform, LifeformConfig
 

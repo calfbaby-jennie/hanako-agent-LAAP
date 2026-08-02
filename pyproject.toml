@@ -10,8 +10,12 @@ readme = "README.md"
 license = { text = "GPL-3.0-or-later" }
 requires-python = ">=3.11"
 dependencies = [
-    "cryptography>=41.0",
+    # cryptography 47+ no longer publishes Intel macOS wheels.  Keep the
+    # universal2 wheel series so x86_64 macOS does not require a Rust build.
+    "cryptography>=41.0,<47",
     "docker>=6.0",
+    "msgpack>=1.0",
+    "PyYAML>=6.0",
 ]
 authors = [
     { name = "Lorry & Aris", email = "lorry@laap.ai" },

@@ -18,7 +18,9 @@ import time
 from typing import NoReturn
 
 # Ensure LAAP package is importable
-_laap_root = os.environ.get("LAAP_ROOT", r"D:\LAAP")
+from laap.config.paths import get_laap_root
+
+_laap_root = str(get_laap_root())
 if _laap_root not in sys.path:
     sys.path.insert(0, _laap_root)
 

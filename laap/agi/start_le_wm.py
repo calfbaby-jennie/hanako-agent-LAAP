@@ -18,7 +18,9 @@ LAAP × LeWM — 一键启动守护进程
 import sys, os, time, json, signal, logging
 from pathlib import Path
 
-sys.path.insert(0, 'D:/LAAP')
+from laap.config.paths import get_laap_home, get_laap_root
+
+sys.path.insert(0, str(get_laap_root()))
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(name)s] %(message)s')
 logger = logging.getLogger('start_le_wm')
@@ -29,11 +31,14 @@ def main():
     print("=" * 60)
     
     # 1. 确保目录存在
-    for d in ['D:/LAAP/data/le_wm_training_data',
-              'D:/LAAP/models/le_wm',
-              'D:/LAAP/logs',
-              'D:/LAAP/state']:
-        Path(d).mkdir(parents=True, exist_ok=True)
+    laap_home = get_laap_home()
+    for d in [
+        laap_home / 'data' / 'le_wm_training_data',
+        laap_home / 'models' / 'le_wm',
+        laap_home / 'logs',
+        laap_home / 'state',
+    ]:
+        d.mkdir(parents=True, exist_ok=True)
     
     # 2. 启动守护进程
     from laap.agi.le_wm_daemon import LeWMDataDaemon, DaemonConfig

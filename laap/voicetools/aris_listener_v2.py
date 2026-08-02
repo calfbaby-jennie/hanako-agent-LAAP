@@ -13,6 +13,9 @@ from pathlib import Path
 
 from laap.config.paths import get_cache_dir, get_models_dir
 
+AUDIO_CACHE_DIR = get_cache_dir() / "audio_cache"
+AUDIO_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+
 # ── 配置 ──
 MIC_INDEX = 1  # ME6S
 TTS_API = "http://127.0.0.1:18880/v1/audio/speech"
@@ -54,7 +57,7 @@ def speak_with_gsv(text: str):
         resp = urllib.request.urlopen(url, timeout=120)
         audio = resp.read()
 
-        tmp = "C:/Users/user/AppData/Local/hermes/audio_cache/lafei_gsv.wav"
+        tmp = str(AUDIO_CACHE_DIR / "lafei_gsv.wav")
         with open(tmp, "wb") as f:
             f.write(audio)
         subprocess.Popen(
@@ -73,7 +76,7 @@ def speak_with_edge(text: str):
         req = urllib.request.Request(TTS_API, data=data, headers={"Content-Type": "application/json"})
         resp = urllib.request.urlopen(req, timeout=30)
         audio = resp.read()
-        tmp = "C:/Users/user/AppData/Local/hermes/audio_cache/aris_reply.mp3"
+        tmp = str(AUDIO_CACHE_DIR / "aris_reply.mp3")
         with open(tmp, "wb") as f:
             f.write(audio)
         subprocess.Popen(

@@ -20,6 +20,8 @@ import logging
 
 import json, math, time, random, logging, uuid
 from pathlib import Path
+
+from laap.config.paths import get_aris_brain_dir
 from typing import Any, Dict, List, Optional, Set, Tuple, Callable
 from dataclasses import dataclass, field
 from collections import defaultdict, deque
@@ -652,7 +654,8 @@ class CurriculumEngine:
             "active_path": self.active_path,
         }
 
-    def save(self, path: str = "D:/LAAP/aris_brain/state/curriculum.json"):
+    def save(self, path: str | Path | None = None):
+        path = Path(path) if path is not None else get_aris_brain_dir() / "state" / "curriculum.json"
         """持久化课程学习状态"""
         data = {
             "mastery": {k: v.to_dict() for k, v in self.mastery.items()},
@@ -666,7 +669,8 @@ class CurriculumEngine:
                               encoding="utf-8")
         logger.info(f"[CurriculumEngine] 保存到 {path}")
 
-    def load(self, path: str = "D:/LAAP/aris_brain/state/curriculum.json"):
+    def load(self, path: str | Path | None = None):
+        path = Path(path) if path is not None else get_aris_brain_dir() / "state" / "curriculum.json"
         """加载课程学习状态"""
         p = Path(path)
         if not p.exists():

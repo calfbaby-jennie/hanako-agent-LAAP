@@ -21,15 +21,16 @@ from pathlib import Path
 from typing import Dict, List, Optional, Any, Callable
 from dataclasses import dataclass, field, asdict
 
+from runtime_paths import LAAP_HOME
+
 logger = logging.getLogger("aris.laap_hive")
 
-# ── LAAP 核心路径 ──────────────────────────────────────────
+# ── LAAP 持久化路径 ─────────────────────────────────────────
 
-LAAP_ROOT = Path("D:/LAAP")
-REGISTRY_PATH = LAAP_ROOT / ".agent_registry.json"
-EVENTS_PATH = LAAP_ROOT / ".agent_events.json"
-KNOWLEDGE_GRAPH_PATH = LAAP_ROOT / ".agent_knowledge_graph.json"
-TASK_BOARD_PATH = LAAP_ROOT / ".task_board.json"
+REGISTRY_PATH = LAAP_HOME / ".agent_registry.json"
+EVENTS_PATH = LAAP_HOME / ".agent_events.json"
+KNOWLEDGE_GRAPH_PATH = LAAP_HOME / ".agent_knowledge_graph.json"
+TASK_BOARD_PATH = LAAP_HOME / ".task_board.json"
 
 # ── Aris Agent 身份 ────────────────────────────────────────
 

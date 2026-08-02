@@ -23,12 +23,15 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple
 
+from laap.config.paths import get_aris_brain_dir
+
 logger = logging.getLogger("laap.approval")
 
 # ─── 配置常量 ──────────────────────────────────────
 
-CONFIG_PATH = Path("D:/LAAP/aris_brain/state/approval_config.json")
-ALLOWLIST_PATH = Path("D:/LAAP/aris_brain/state/approval_allowlist.json")
+_APPROVAL_STATE_DIR = get_aris_brain_dir() / "state"
+CONFIG_PATH = _APPROVAL_STATE_DIR / "approval_config.json"
+ALLOWLIST_PATH = _APPROVAL_STATE_DIR / "approval_allowlist.json"
 
 
 def _load_config() -> Dict[str, Any]:

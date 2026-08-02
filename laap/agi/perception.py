@@ -34,6 +34,8 @@ from enum import Enum
 
 import numpy as np
 
+from laap.config.paths import get_aris_brain_dir
+
 logger = logging.getLogger("laap.agi.perception")
 
 
@@ -609,8 +611,9 @@ class UnifiedPerceptionEngine:
             "active_channels": sum(1 for c in self.channels.values() if c.enabled),
         }
 
-    def save(self, path: str = "D:/LAAP/aris_brain/state/perception_state.json"):
+    def save(self, path: str | Path | None = None):
         """持久化感知状态"""
+        path = Path(path) if path is not None else get_aris_brain_dir() / "state" / "perception_state.json"
         data = {
             "total_perceptions": self._total_perceptions,
             "validations": self._total_validations,
@@ -623,8 +626,9 @@ class UnifiedPerceptionEngine:
                               encoding="utf-8")
         logger.info(f"[UnifiedPerception] 保存到 {path}")
 
-    def load(self, path: str = "D:/LAAP/aris_brain/state/perception_state.json"):
+    def load(self, path: str | Path | None = None):
         """加载感知状态"""
+        path = Path(path) if path is not None else get_aris_brain_dir() / "state" / "perception_state.json"
         p = Path(path)
         if not p.exists():
             return False

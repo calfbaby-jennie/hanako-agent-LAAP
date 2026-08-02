@@ -6,13 +6,15 @@ import os
 import sys
 from pathlib import Path
 
+from laap.config.paths import get_laap_root
+
 HARNESSX_ROOT = Path(
-    os.environ.get("HARNESSX_ROOT", "D:/LAAP/HarnessX-main")
+    os.environ.get("HARNESSX_ROOT", str(get_laap_root() / "HarnessX-main"))
 ).resolve()
 
 
 def ensure_harnessx_importable() -> None:
-    """Make sure ``D:/LAAP/HarnessX-main`` (or ``HARNESSX_ROOT``) is on ``sys.path``.
+    """Make sure ``HARNESSX_ROOT`` (or the checkout's HarnessX-main) is on ``sys.path``.
 
     This is a no-op if the path is already present. The function validates that
     ``harnessx`` can be imported afterwards.

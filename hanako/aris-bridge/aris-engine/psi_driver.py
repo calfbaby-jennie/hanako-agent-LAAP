@@ -26,6 +26,8 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass, field
 
+from runtime_paths import SIDECAR_STATE_DIR
+
 logger = logging.getLogger("aris.psi_driver")
 
 
@@ -262,7 +264,7 @@ class PSIDriver:
     def save(self, path: Optional[str] = None):
         """持久化状态"""
         if path is None:
-            path = Path(__file__).parent / "state" / "psi_state.json"
+            path = SIDECAR_STATE_DIR / "psi_state.json"
         path = Path(path)
         path.parent.mkdir(parents=True, exist_ok=True)
         data = {
@@ -278,7 +280,7 @@ class PSIDriver:
     def load(self, path: Optional[str] = None):
         """加载持久化状态"""
         if path is None:
-            path = Path(__file__).parent / "state" / "psi_state.json"
+            path = SIDECAR_STATE_DIR / "psi_state.json"
         path = Path(path)
         if not path.exists():
             logger.warning(f"PSI state file not found: {path}")

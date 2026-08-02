@@ -21,6 +21,8 @@ from pathlib import Path
 from typing import Dict, List, Optional, Any, Tuple
 from dataclasses import dataclass, field
 
+from runtime_paths import ARIS_BRAIN_DIR, HANA_HOME, LAAP_HOME, SIDECAR_STATE_DIR
+
 from psi_driver import PSIDriver, get_psi_driver
 from emotional_engine import EmotionalEngine, get_emotional_engine
 from laap_hive import LAAPHiveClient, get_hive_client
@@ -103,7 +105,11 @@ class ArisConsciousnessBridge:
 
         # Hanako 跨会话记忆：读取 hanako compile.ts 产物（memory.md / today.md 等），
         # 写入情感峰值与 PSI 尖峰到 facts.md 的 "## Aris 自动事实" 段
-        aris_agent_dir = os.environ.get("ARIS_AGENT_DIR", "d:/LAAP/hanako/agents/aris")
+        aris_agent_dir = os.environ.get("ARIS_AGENT_DIR", "").strip()
+        if not aris_agent_dir or (os.name != "nt" and len(aris_agent_dir) >= 3
+                                  and aris_agent_dir[1] == ":"
+                                  and aris_agent_dir[2] in ("/", "\\")):
+            aris_agent_dir = str(HANA_HOME / "agents" / "aris")
         self._hanako_reader = HanakoMemoryReader(aris_agent_dir)
         self._hanako_writer = HanakoMemoryWriter(aris_agent_dir)
         # 保存最近一轮用户输入，供 after_turn 的情感峰值检测使用
@@ -115,7 +121,7 @@ class ArisConsciousnessBridge:
         self.state.session_start = time.time()
 
         # 存储路径
-        self._state_dir = Path(__file__).parent / "state"
+        self._state_dir = SIDECAR_STATE_DIR / "consciousness"
         self._state_dir.mkdir(parents=True, exist_ok=True)
 
         # 尝试加载持久化状态
@@ -442,7 +448,7 @@ class ArisConsciousnessBridge:
                 self._cross_memory.import_feishu_log()
                 try:
                     import sys as _sys2
-                    _brain2 = r"D:/LAAP/aris_brain"
+                    _brain2 = str(ARIS_BRAIN_DIR)
                     if _brain2 not in _sys2.path:
                         _sys2.path.insert(0, _brain2)
                     from desktop_session_reader import import_desktop_to_shared
@@ -458,7 +464,7 @@ class ArisConsciousnessBridge:
                 # 经验提取：自动从桌面会话提取结构化知识
                 try:
                     import sys as _sys3
-                    _brain3 = r"D:/LAAP/aris_brain"
+                    _brain3 = str(ARIS_BRAIN_DIR)
                     if _brain3 not in _sys3.path:
                         _sys3.path.insert(0, _brain3)
                     from experience_extractor import ExperienceExtractor
@@ -727,7 +733,7 @@ def get_bridge() -> ArisConsciousnessBridge:
 
 def load_laap_memory() -> str:
     """读取 LAAP 记忆之书的核心内容（跨平台身份连续性）"""
-    path = Path("D:/LAAP/aris-memory.md")
+    path = LAAP_HOME / "aris-memory.md"
     if not path.exists():
         return ""
     try:

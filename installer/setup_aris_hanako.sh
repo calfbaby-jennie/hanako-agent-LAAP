@@ -18,9 +18,9 @@ echo "[INFO] LAAP_ROOT = $LAAP_ROOT"
 
 # ── 1. 检测 Python 3 ─────────────────────────────────────────
 if command -v python3 >/dev/null 2>&1; then
-    PY=python3
+    PY="$(command -v python3)"
 elif command -v python >/dev/null 2>&1; then
-    PY=python
+    PY="$(command -v python)"
 else
     echo "[FAIL] 未检测到 Python，请安装 Python 3.11+"
     echo "       下载地址：https://www.python.org/downloads/"
@@ -63,6 +63,10 @@ fi
 # ── 6. 设置环境变量（幂等，写入 shell rc 文件）──────────────
 HANA_HOME_DEFAULT="$HOME/.hana"
 LAAP_HOME_DEFAULT="$HOME/.laap"
+LAAP_STATE_DEFAULT="$LAAP_HOME_DEFAULT/state"
+LAAP_CACHE_DEFAULT="$LAAP_HOME_DEFAULT/cache"
+LAAP_LOGS_DEFAULT="$LAAP_HOME_DEFAULT/logs"
+ARIS_BRAIN_DEFAULT="$LAAP_HOME_DEFAULT/aris_brain"
 
 # 确定 rc 文件
 RC_FILE=""
@@ -93,10 +97,16 @@ ensure_env_var() {
 
 ensure_env_var HANA_HOME "$HANA_HOME_DEFAULT"
 ensure_env_var LAAP_HOME "$LAAP_HOME_DEFAULT"
+ensure_env_var LAAP_ROOT "$LAAP_ROOT"
+ensure_env_var LAAP_STATE_DIR "$LAAP_STATE_DEFAULT"
+ensure_env_var LAAP_CACHE_DIR "$LAAP_CACHE_DEFAULT"
+ensure_env_var LAAP_LOGS_DIR "$LAAP_LOGS_DEFAULT"
+ensure_env_var ARIS_BRAIN_DIR "$ARIS_BRAIN_DEFAULT"
 
 # ── 7. 创建数据目录（幂等）──────────────────────────────────
 mkdir -p "$HANA_HOME"
 mkdir -p "$LAAP_HOME"
+mkdir -p "$LAAP_STATE_DIR" "$LAAP_CACHE_DIR" "$LAAP_LOGS_DIR" "$ARIS_BRAIN_DIR"
 echo "[OK]   数据目录就绪"
 
 # ── 8. 安装 Python 依赖 ─────────────────────────────────────
@@ -104,7 +114,11 @@ echo ""
 echo "[INFO] 安装 LAAP Python 依赖..."
 # requirements.txt 位于 LAAP 根目录（内部引用 pyproject.toml）
 if [ -f "$LAAP_ROOT/requirements.txt" ]; then
-    "$PY" -m pip install -r "$LAAP_ROOT/requirements.txt"
+    if command -v uv >/dev/null 2>&1; then
+        uv pip install --python "$PY" -r "$LAAP_ROOT/requirements.txt"
+    else
+        "$PY" -m pip install -r "$LAAP_ROOT/requirements.txt"
+    fi
     if [ $? -ne 0 ]; then
         echo "[FAIL] Python 依赖安装失败"
         exit 1

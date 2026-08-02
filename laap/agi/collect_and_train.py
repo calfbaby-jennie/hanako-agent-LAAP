@@ -20,7 +20,12 @@ from typing import Optional
 
 import numpy as np
 
-sys.path.insert(0, 'D:/LAAP')
+from laap.config.paths import get_laap_home, get_laap_root
+
+sys.path.insert(0, str(get_laap_root()))
+
+_DATA_DIR = str(get_laap_home() / "data" / "le_wm_training_data")
+_MODEL_DIR = str(get_laap_home() / "models" / "le_wm")
 
 logging.basicConfig(level=logging.WARNING)
 logger = logging.getLogger('collect_and_train')
@@ -78,7 +83,7 @@ TEST_MESSAGES = [
 
 def run_collection(
     n_cycles: int = 50,
-    data_dir: str = 'D:/LAAP/data/le_wm_training_data'
+    data_dir: str = _DATA_DIR
 ):
     """
     运行数据收集。
@@ -145,8 +150,8 @@ def run_collection(
 
 
 def run_training(
-    data_dir: str = 'D:/LAAP/data/le_wm_training_data',
-    model_dir: str = 'D:/LAAP/models/le_wm',
+    data_dir: str = _DATA_DIR,
+    model_dir: str = _MODEL_DIR,
     n_epochs: int = 50,
     verbose: bool = True,
 ):
@@ -171,8 +176,8 @@ def run_training(
 def collect_and_train(
     n_cycles: int = 50,
     n_epochs: int = 50,
-    data_dir: str = 'D:/LAAP/data/le_wm_training_data',
-    model_dir: str = 'D:/LAAP/models/le_wm',
+    data_dir: str = _DATA_DIR,
+    model_dir: str = _MODEL_DIR,
     verbose: bool = True,
 ):
     """
@@ -215,9 +220,9 @@ if __name__ == '__main__':
                         help='PSI 循环周期数 (默认: 50)')
     parser.add_argument('--epochs', type=int, default=50,
                         help='训练轮次 (默认: 50)')
-    parser.add_argument('--data-dir', default='D:/LAAP/data/le_wm_training_data',
+    parser.add_argument('--data-dir', default=_DATA_DIR,
                         help='训练数据目录')
-    parser.add_argument('--model-dir', default='D:/LAAP/models/le_wm',
+    parser.add_argument('--model-dir', default=_MODEL_DIR,
                         help='模型保存目录')
     parser.add_argument('--train-only', action='store_true',
                         help='仅训练 (不收集数据)')

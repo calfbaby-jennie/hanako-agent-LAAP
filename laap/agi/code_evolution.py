@@ -38,6 +38,7 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 from enum import Enum
 import time, logging, json, os, sys, ast, hashlib, difflib, subprocess, tempfile, shutil, re, threading
 from laap.rust_bridge import get_bridge
+from laap.config.paths import get_laap_root
 from pathlib import Path
 from collections import defaultdict
 
@@ -937,7 +938,7 @@ class CodeEvolutionEngine:
     test them in isolation, and deploy or rollback.
 
     Usage:
-        engine = CodeEvolutionEngine(repo_root=r"D:\LAAP")
+                engine = CodeEvolutionEngine(repo_root=str(get_laap_root()))
         engine.auto_improve("laap/agi/")
     """
 
@@ -1116,7 +1117,7 @@ def integrate_code_evolution(agent, repo_root: str = "") -> CodeEvolutionEngine:
         llm_fn = getattr(agent, 'llm', None)
     
     engine = CodeEvolutionEngine(
-        repo_root=repo_root or os.environ.get("LAAP_ROOT", r"D:\LAAP"),
+        repo_root=repo_root or str(get_laap_root()),
         llm_fn=llm_fn,
     )
     agent.code_evolution = engine

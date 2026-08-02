@@ -14,7 +14,7 @@ Phase 1: 数据管道 + 状态管理器 + 模型骨架
   4. training_plan.md  — 训练计划文档
   5. test_self_model.py— 验证测试
 
-持久状态数据保存在 D:/LAAP/aris_brain/self_model/
+持久状态数据保存在 ARIS_BRAIN_DIR/self_model/
 与现有统计型自我模型 (laap/agi/self_model.py) 完全独立。
 """
 

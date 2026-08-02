@@ -23,8 +23,12 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
+from laap.config.paths import get_laap_home, get_laap_root
+
 # 确保能找到 laap 模块
-sys.path.insert(0, 'D:/LAAP')
+sys.path.insert(0, str(get_laap_root()))
+
+_MODEL_DIR = str(get_laap_home() / "models" / "le_wm")
 
 from laap.agi.le_wm_engine import (
     LeWMEngine, LeWMConfig, LeWM_DEFAULT_CONFIG,
@@ -64,7 +68,7 @@ class TrainConfig:
     eval_n_trajectories: int = 20
     
     # 保存
-    save_dir: str = 'D:/LAAP/models/le_wm'
+    save_dir: str = _MODEL_DIR
     save_every: int = 5
 
 

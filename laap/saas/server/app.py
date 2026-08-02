@@ -32,6 +32,7 @@ from laap.saas.renderer.html_renderer import HTMLRenderer, render_page
 from laap.saas.datastore.schema_registry import SchemaRegistry
 from laap.saas.datastore.generic_crud import GenericCRUD, FilterTuple
 from laap.saas.datastore.auto_migrator import AutoMigrator
+from laap.config.paths import get_laap_root
 
 # A2: Multi-tenant
 from laap.saas.tenant.manager import TenantManager
@@ -708,7 +709,7 @@ def create_app(db_path: str = "laap_saas.db") -> "FastAPI":
         agent = _agents[agent_id]
         try:
             from laap.sandbox._types import ProjectSnapshot, FileTreeState
-            snap = ProjectSnapshot(root_path="D:/LAAP",
+            snap = ProjectSnapshot(root_path=str(get_laap_root()),
                 file_tree=FileTreeState(total_files=0, total_lines=0))
             agent.perceive(snap)
             suggestion = agent.think()

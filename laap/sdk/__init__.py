@@ -28,14 +28,20 @@ Framework 模式（独立运行 LAAP 框架）::
 
 from __future__ import annotations
 
-from laap.sdk.client import AetherClient
-from laap.sdk.runtime import LAAPRuntime
+def __getattr__(name: str):
+    """Load SDK entry points only when requested."""
+    import importlib
 
-# 适配器基类（供 adapter 实现者使用）
-from laap.sdk.adapter import AgentAdapter
-
-# 大脑挂载统一入口（hermes / claude_code / openclaw / generic 四种适配器）
-from laap.sdk.mount import mount_brain_to_agent
+    lazy = {
+        "AetherClient": ("laap.sdk.client", "AetherClient"),
+        "LAAPRuntime": ("laap.sdk.runtime", "LAAPRuntime"),
+        "AgentAdapter": ("laap.sdk.adapter", "AgentAdapter"),
+        "mount_brain_to_agent": ("laap.sdk.mount", "mount_brain_to_agent"),
+    }
+    if name not in lazy:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    module_name, attribute = lazy[name]
+    return getattr(importlib.import_module(module_name), attribute)
 
 __all__ = [
     "AetherClient",

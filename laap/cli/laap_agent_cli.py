@@ -13,6 +13,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import List, Optional
 
+from laap.config.paths import get_aris_brain_dir
+
 os.environ["LAAP_QUIET"] = "1"
 logger = logging.getLogger(__name__)
 
@@ -289,7 +291,7 @@ def main():
 
         # Try zero-LLM path first
         try:
-            sys.path.insert(0, "D:/LAAP/aris_brain")
+            sys.path.insert(0, str(get_aris_brain_dir()))
             from aether_agent_loop import get_agent
             agent = get_agent()
             t0 = time.time()

@@ -21,6 +21,8 @@ from typing import Any, Callable, Dict, List, Optional
 import threading, logging, json, os, time, glob
 from pathlib import Path
 
+from laap.config.paths import get_aris_brain_dir
+
 logger = logging.getLogger("laap.agi.gws_bridge")
 
 
@@ -75,7 +77,7 @@ class GWSBridge:
         Args:
             conscious_stream: ConsciousStream 实例（含 global_workspace）
             cognitive_bus: CognitiveBus 实例
-            ipc_dir: IPC 目录（默认 D:/LAAP/aris_brain/state/ipc）
+            ipc_dir: IPC 目录（默认 ARIS_BRAIN_DIR/state/ipc）
         """
         self.stream = conscious_stream
         self.gws = conscious_stream.global_workspace if conscious_stream else None
@@ -86,10 +88,7 @@ class GWSBridge:
             self.ipc_dir = ipc_dir
         else:
             # 自动检测
-            candidates = [
-                "D:/LAAP/aris_brain/state/ipc",
-                os.path.join(os.path.dirname(__file__), "..", "..", "aris_brain", "state", "ipc"),
-            ]
+            candidates = [str(get_aris_brain_dir() / "state" / "ipc")]
             self.ipc_dir = None
             for c in candidates:
                 if os.path.isdir(c):
@@ -480,8 +479,9 @@ def activate_all(agi_agent) -> Dict[str, bool]:
 
     # ── 待办 3: 100ms Rust 心跳 ──
     # 启动 release 构建的 Rust PSI Core
-    rust_binary = "D:/LAAP/aris_brain/psi_core/target/release/aris_psi_core.exe"
-    state_dir = "D:/LAAP/aris_brain/state"
+    rust_binary_name = "aris_psi_core.exe" if os.name == "nt" else "aris_psi_core"
+    rust_binary = str(get_aris_brain_dir() / "psi_core" / "target" / "release" / rust_binary_name)
+    state_dir = str(get_aris_brain_dir() / "state")
 
     if os.path.exists(rust_binary):
         import subprocess

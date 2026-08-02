@@ -7,8 +7,11 @@ from pathlib import Path
 import pytest
 
 from laap.config.paths import (
+    get_aris_brain_dir,
     get_cache_dir,
+    get_hana_home,
     get_hermes_root,
+    get_laap_home,
     get_laap_root,
     get_logs_dir,
     get_models_dir,
@@ -22,6 +25,9 @@ def _clean_env(monkeypatch):
     """每个测试前清理可能影响路径解析的环境变量。"""
     for key in (
         "LAAP_ROOT",
+        "LAAP_HOME",
+        "HANA_HOME",
+        "ARIS_BRAIN_DIR",
         "HERMES_ROOT",
         "LAAP_STATE_DIR",
         "LAAP_CACHE_DIR",
@@ -45,6 +51,9 @@ def test_all_functions_return_path_objects(tmp_path, monkeypatch):
     monkeypatch.setenv("LAAP_VIDEO_DIR", str(tmp_path / "video"))
 
     assert isinstance(get_laap_root(), Path)
+    assert isinstance(get_laap_home(), Path)
+    assert isinstance(get_hana_home(), Path)
+    assert isinstance(get_aris_brain_dir(), Path)
     assert isinstance(get_hermes_root(), Path)
     assert isinstance(get_state_dir(), Path)
     assert isinstance(get_cache_dir(), Path)
@@ -76,6 +85,20 @@ def test_env_variables_override_defaults(tmp_path, monkeypatch):
     assert get_video_dir() == overrides["LAAP_VIDEO_DIR"]
 
 
+def test_runtime_home_overrides(tmp_path, monkeypatch):
+    laap_home = tmp_path / "laap-home"
+    hana_home = tmp_path / "hana-home"
+    monkeypatch.setenv("LAAP_HOME", str(laap_home))
+    monkeypatch.setenv("HANA_HOME", str(hana_home))
+
+    assert get_laap_home() == laap_home
+    assert get_hana_home() == hana_home
+    assert get_state_dir() == laap_home / "state"
+    assert get_cache_dir() == laap_home / "cache"
+    assert get_logs_dir() == laap_home / "logs"
+    assert get_aris_brain_dir() == laap_home / "aris_brain"
+
+
 def test_xdg_env_overrides_platform_defaults(tmp_path, monkeypatch):
     """XDG_STATE_HOME / XDG_CACHE_HOME 优先于平台默认目录。"""
     monkeypatch.setenv("XDG_STATE_HOME", str(tmp_path / "xdg_state"))
@@ -90,8 +113,7 @@ def test_get_laap_root_derived_from_file_location(monkeypatch):
     monkeypatch.delenv("LAAP_ROOT", raising=False)
     root = get_laap_root()
     assert isinstance(root, Path)
-    # 本项目根目录名为 LAAP（d:\LAAP）
-    assert root.name == "LAAP"
+    assert root == Path(__file__).resolve().parent.parent.parent
 
 
 def test_get_hermes_root_from_env(tmp_path, monkeypatch):
@@ -117,9 +139,9 @@ def test_default_models_dir(tmp_path, monkeypatch):
 
 
 def test_default_logs_dir(tmp_path, monkeypatch):
-    """默认日志目录位于项目根目录的 .laap/logs 下。"""
-    monkeypatch.setenv("LAAP_ROOT", str(tmp_path / "laap"))
-    assert get_logs_dir() == tmp_path / "laap" / ".laap" / "logs"
+    """默认日志目录位于用户 LAAP_HOME 下。"""
+    monkeypatch.setattr(Path, "home", classmethod(lambda cls: tmp_path))
+    assert get_logs_dir() == tmp_path / ".laap" / "logs"
 
 
 def test_default_video_dir(tmp_path, monkeypatch):

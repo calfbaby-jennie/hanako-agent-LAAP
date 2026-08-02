@@ -32,6 +32,35 @@ def get_laap_root() -> Path:
     return Path.cwd().resolve()
 
 
+def get_laap_home() -> Path:
+    """Return the writable LAAP data directory.
+
+    ``LAAP_ROOT`` identifies the source checkout and must not be used as the
+    default persistence directory. ``LAAP_HOME`` is the single override for
+    user-owned LAAP data on every supported platform.
+    """
+    env_home = os.environ.get("LAAP_HOME")
+    if env_home:
+        return Path(env_home).expanduser().resolve()
+    return (Path.home() / ".laap").resolve()
+
+
+def get_hana_home() -> Path:
+    """Return the writable HanaAgent data directory."""
+    env_home = os.environ.get("HANA_HOME")
+    if env_home:
+        return Path(env_home).expanduser().resolve()
+    return (Path.home() / ".hana").resolve()
+
+
+def get_aris_brain_dir() -> Path:
+    """Return the writable compatibility directory for legacy Aris state."""
+    env_brain = os.environ.get("ARIS_BRAIN_DIR")
+    if env_brain:
+        return Path(env_brain).expanduser().resolve()
+    return get_laap_home() / "aris_brain"
+
+
 def get_hermes_root() -> Path | None:
     """返回 Hermes 根目录。
 
@@ -76,23 +105,22 @@ def get_state_dir() -> Path:
 
     优先级：
         1. ``LAAP_STATE_DIR`` 环境变量。
-        2. ``XDG_STATE_HOME/laap``（若设置）。
-        3. 平台约定（Windows: ``%LOCALAPPDATA%/laap/state``，macOS: ``~/Library/Application Support/laap/state``，Linux: ``~/.local/state/laap``）。
-        4. ``<laap_root>/.laap/state``。
+        2. ``LAAP_HOME/state``。
+        3. ``XDG_STATE_HOME/laap``（若设置）。
+        4. ``~/.laap/state``。
     """
     env_state = os.environ.get("LAAP_STATE_DIR")
     if env_state:
         return Path(env_state).expanduser().resolve()
 
+    if os.environ.get("LAAP_HOME"):
+        return get_laap_home() / "state"
+
     xdg_state_home = os.environ.get("XDG_STATE_HOME")
     if xdg_state_home:
         return Path(xdg_state_home).expanduser().resolve() / "laap"
 
-    platform_dir = _platform_app_dir("state")
-    if platform_dir.exists() or "LOCALAPPDATA" in os.environ or sys.platform != "win32":
-        return platform_dir
-
-    return get_laap_root() / ".laap" / "state"
+    return get_laap_home() / "state"
 
 
 def get_cache_dir() -> Path:
@@ -100,30 +128,22 @@ def get_cache_dir() -> Path:
 
     优先级：
         1. ``LAAP_CACHE_DIR`` 环境变量。
-        2. ``XDG_CACHE_HOME/laap``（若设置）。
-        3. 平台约定（Windows: ``%LOCALAPPDATA%/laap/cache``，macOS: ``~/Library/Caches/laap``，Linux: ``~/.cache/laap``）。
-        4. ``<laap_root>/.laap/cache``。
+        2. ``LAAP_HOME/cache``。
+        3. ``XDG_CACHE_HOME/laap``（若设置）。
+        4. ``~/.laap/cache``。
     """
     env_cache = os.environ.get("LAAP_CACHE_DIR")
     if env_cache:
         return Path(env_cache).expanduser().resolve()
 
+    if os.environ.get("LAAP_HOME"):
+        return get_laap_home() / "cache"
+
     xdg_cache_home = os.environ.get("XDG_CACHE_HOME")
     if xdg_cache_home:
         return Path(xdg_cache_home).expanduser().resolve() / "laap"
 
-    if sys.platform == "win32":
-        local_appdata = os.environ.get("LOCALAPPDATA", Path.home() / "AppData" / "Local")
-        platform_dir = Path(local_appdata) / "laap" / "cache"
-    elif sys.platform == "darwin":
-        platform_dir = Path.home() / "Library" / "Caches" / "laap"
-    else:
-        platform_dir = Path.home() / ".cache" / "laap"
-
-    if platform_dir.exists() or "LOCALAPPDATA" in os.environ or sys.platform != "win32":
-        return platform_dir
-
-    return get_laap_root() / ".laap" / "cache"
+    return get_laap_home() / "cache"
 
 
 def get_models_dir() -> Path:
@@ -144,12 +164,12 @@ def get_logs_dir() -> Path:
 
     优先级：
         1. ``LAAP_LOGS_DIR`` 环境变量。
-        2. ``<laap_root>/.laap/logs``。
+        2. ``LAAP_HOME/logs``。
     """
     env_logs = os.environ.get("LAAP_LOGS_DIR")
     if env_logs:
         return Path(env_logs).expanduser().resolve()
-    return get_laap_root() / ".laap" / "logs"
+    return get_laap_home() / "logs"
 
 
 def get_video_dir() -> Path:

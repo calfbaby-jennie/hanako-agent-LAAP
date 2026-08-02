@@ -57,6 +57,7 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Set, Tuple
 from enum import Enum
 import time, logging, os, sys, json, re, ast, hashlib, difflib, threading
+from laap.config.paths import get_laap_root
 from pathlib import Path
 from collections import defaultdict, Counter
 
@@ -112,7 +113,7 @@ class DeadCodeDetector:
     """AST-based detection of unused and dead code."""
 
     def __init__(self, repo_root: str = ""):
-        self.repo_root = repo_root or os.environ.get("LAAP_ROOT", r"D:\LAAP")
+        self.repo_root = repo_root or str(get_laap_root())
 
     def scan_module(self, file_path: str) -> List[DeadCodeItem]:
         """Scan a single module for dead code."""
@@ -397,7 +398,7 @@ class ZombieTracker:
     ZOMBIE_THRESHOLD = 3  # Versions before confirmed zombie
 
     def __init__(self, state_path: str = ""):
-        state_dir = state_path or os.environ.get("LAAP_ROOT", r"D:\LAAP")
+        state_dir = state_path or str(get_laap_root())
         self.state_file = os.path.join(state_dir, ".zombie_tracker.json")
         self.zombies: Dict[str, Dict] = {}  # hash → {file, lines, versions_dead}
         self._load()
@@ -475,7 +476,7 @@ class CodeMinimizer:
     """
 
     def __init__(self, repo_root: str = ""):
-        self.repo_root = repo_root or os.environ.get("LAAP_ROOT", r"D:\LAAP")
+        self.repo_root = repo_root or str(get_laap_root())
         self.dead_detector = DeadCodeDetector(repo_root)
         self.redundancy = RedundancyDetector()
         self.zombie_tracker = ZombieTracker(repo_root)
@@ -642,7 +643,7 @@ class CodeBudget:
     }
 
     def __init__(self, repo_root: str = ""):
-        self.repo_root = repo_root or os.environ.get("LAAP_ROOT", r"D:\LAAP")
+        self.repo_root = repo_root or str(get_laap_root())
         self.budgets = dict(self.DEFAULT_BUDGETS)
 
     def check_module(self, module_name: str) -> Dict[str, Any]:
@@ -697,7 +698,7 @@ class CodeBudget:
 
 def integrate_code_minimizer(agent) -> CodeMinimizer:
     minimizer = CodeMinimizer(
-        repo_root=os.environ.get("LAAP_ROOT", r"D:\LAAP")
+        repo_root=str(get_laap_root())
     )
     agent.code_minimizer = minimizer
     logger.info(f"CodeMinimizer integrated into {getattr(agent, 'name', 'agent')}")

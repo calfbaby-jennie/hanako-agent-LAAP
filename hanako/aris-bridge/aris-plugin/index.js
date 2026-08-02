@@ -18,10 +18,24 @@ const fs = require('fs');
 
 const SIDECAR_DIR = path.join(__dirname, '..', 'aris-engine');
 const SIDECAR_SCRIPT = 'sidecar.py';
+const os = require('os');
 
 const DEFAULT_HANAKO_SERVER_URL = 'http://127.0.0.1:2668';
-const DEFAULT_ARIS_AGENT_DIR = 'd:/LAAP/hanako/agents/aris';
+const DEFAULT_HANA_HOME = process.env.HANA_HOME || path.join(os.homedir(), '.hana');
+const DEFAULT_LAAP_HOME = process.env.LAAP_HOME || path.join(os.homedir(), '.laap');
+const DEFAULT_LAAP_STATE_DIR = process.env.LAAP_STATE_DIR || path.join(DEFAULT_LAAP_HOME, 'state');
+const DEFAULT_ARIS_AGENT_DIR = path.join(DEFAULT_HANA_HOME, 'agents', 'aris');
 const DEFAULT_CHANNEL_NAME = 'aris-lounge';
+
+function resolveArisAgentDir(config = {}) {
+  const configured = String(config.arisAgentDir || '').trim();
+  // A persisted Windows drive path must not win over the macOS default after
+  // a user moves the same Hanako data directory between platforms.
+  if (!configured || (process.platform !== 'win32' && /^[A-Za-z]:[\\/]/.test(configured))) {
+    return DEFAULT_ARIS_AGENT_DIR;
+  }
+  return configured;
+}
 
 let sidecarProcess = null;
 let sidecarReady = false;
@@ -233,12 +247,13 @@ async function startSidecar(ctx, port) {
     return;
   }
   
-  const pythonCmd = ctx.config?.arisPythonCmd || 'python';
+  const pythonCmd = ctx.config?.arisPythonCmd || process.env.LAAP_PYTHON || 'python3';
   
   logger(ctx, 'Starting sidecar: ' + pythonCmd + ' ' + SIDECAR_SCRIPT + ' (port ' + port + ')');
   
   sidecarProcess = spawn(pythonCmd, [SIDECAR_SCRIPT], {
     cwd: SIDECAR_DIR,
+    env: process.env,
     stdio: ['ignore', 'pipe', 'pipe'],
     detached: false,
   });
@@ -345,7 +360,11 @@ async function stopSidecar() {
 // HTTP 工具函数（v1.1：Bearer token 认证适配）
 // ═════════════════════════════════════════════════════════════
 
-const SIDECAR_TOKEN_PATH = path.join(__dirname, '..', 'aris-engine', 'state', 'aris-sidecar.token');
+const SIDECAR_TOKEN_PATH = path.join(
+  DEFAULT_LAAP_STATE_DIR,
+  'aris-sidecar',
+  'aris-sidecar.token',
+);
 let cachedSidecarToken = null;
 
 function getSidecarToken() {
@@ -775,7 +794,7 @@ function registerArisTools(ctx, sidecarPort) {
  */
 function readMemoryInline(ctx, scope, date) {
   const config = ctx.config || {};
-  const agentDir = config.arisAgentDir || DEFAULT_ARIS_AGENT_DIR;
+  const agentDir = resolveArisAgentDir(config);
   const memoryDir = path.join(agentDir, 'memory');
   let filePath;
   switch (scope) {
@@ -815,7 +834,7 @@ function readMemoryInline(ctx, scope, date) {
  */
 function queryFactsInline(ctx, query, limit) {
   const config = ctx.config || {};
-  const agentDir = config.arisAgentDir || DEFAULT_ARIS_AGENT_DIR;
+  const agentDir = resolveArisAgentDir(config);
   const factsDbPath = path.join(agentDir, 'memory', 'facts.db');
   if (!query || !String(query).trim()) return [];
   if (!fs.existsSync(factsDbPath)) return [];
@@ -872,7 +891,7 @@ function parseTagsInline(raw) {
 
 function appendDmMessage(ctx, peerId, sender, body) {
   const config = ctx.config || {};
-  const agentDir = config.arisAgentDir || DEFAULT_ARIS_AGENT_DIR;
+  const agentDir = resolveArisAgentDir(config);
   if (!peerId || /[\/\\]|\.\./.test(peerId)) {
     throw new Error('Invalid peerId');
   }
@@ -942,7 +961,7 @@ async function ensureDefaultChannel(ctx) {
   const config = ctx.config || {};
   const baseUrl = config.arisHanakoServerUrl || DEFAULT_HANAKO_SERVER_URL;
   const channelName = config.arisDefaultChannel || DEFAULT_CHANNEL_NAME;
-  const agentDir = config.arisAgentDir || DEFAULT_ARIS_AGENT_DIR;
+  const agentDir = resolveArisAgentDir(config);
 
   // GET /channels 列出现有频道
   let listRes;

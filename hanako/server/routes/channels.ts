@@ -227,8 +227,8 @@ export function createChannelsRoute(engine: any, hub: any) {
   }
 
   route.get("/conversations/:id/export", async (c) => {
+    const id = c.req.param("id");
     try {
-      const id = c.req.param("id");
       const format = (c.req.query("format") || "md").toLowerCase();
       const filters = {
         fromDate: c.req.query("from") || undefined,

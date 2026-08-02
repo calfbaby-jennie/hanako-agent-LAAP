@@ -29,7 +29,11 @@ from enum import Enum
 
 import numpy as np
 
-sys.path.insert(0, 'D:/LAAP')
+from laap.config.paths import get_laap_home, get_laap_root
+
+sys.path.insert(0, str(get_laap_root()))
+
+_BASE_DIR = get_laap_home() / "data" / "strategy_v2"
 
 from laap.agi.le_wm_engine import (
     LeWMEngine, LeWMConfig, CEMPlanner, LatentPredictor,
@@ -46,7 +50,7 @@ logger = logging.getLogger('laap.agi.strategy_planner')
 # 配置
 # ================================================================
 
-BASE_DIR = Path('D:/LAAP/data/strategy_v2')
+BASE_DIR = _BASE_DIR
 BASE_DIR.mkdir(parents=True, exist_ok=True)
 
 

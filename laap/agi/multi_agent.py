@@ -20,6 +20,8 @@ import time, logging, os, json, hashlib, threading, uuid
 from pathlib import Path
 from collections import defaultdict
 
+from laap.config.paths import get_laap_home, get_laap_root
+
 logger = logging.getLogger("laap.agi.multi_agent")
 
 # ════════════════════════════════════════════════════════════
@@ -44,7 +46,7 @@ class AgentRegistry:
     
     def __init__(self, registry_path: str = ""):
         self.registry_path = registry_path or os.path.join(
-            os.environ.get("LAAP_ROOT", os.path.expanduser("~/.laap")), ".agent_registry.json"
+            str(get_laap_home()), ".agent_registry.json"
         )
         self.agents: Dict[str, AgentInfo] = {}
         self._lock = threading.Lock()
@@ -132,7 +134,7 @@ class TaskBoard:
     
     def __init__(self, board_path: str = ""):
         self.board_path = board_path or os.path.join(
-            os.environ.get("LAAP_ROOT", os.path.expanduser("~/.laap")), ".task_board.json"
+            str(get_laap_home()), ".task_board.json"
         )
         self.tasks: Dict[str, TaskItem] = {}
         self._file_locks: Dict[str, str] = {}  # file_path → agent_id
@@ -345,7 +347,7 @@ class SafeRollback:
     """
     
     def __init__(self, repo_root: str = "", backup_dir: str = ""):
-        self.repo_root = repo_root or os.environ.get("LAAP_ROOT", r"D:\LAAP")
+        self.repo_root = repo_root or str(get_laap_root())
         self.backup_dir = backup_dir or os.path.join(self.repo_root, ".safe_rollback")
         os.makedirs(self.backup_dir, exist_ok=True)
         self._memory_snapshots: Dict[str, str] = {}  # filepath → content
@@ -483,7 +485,7 @@ class EventBus:
 
     def __init__(self, events_path: str = ""):
         self.events_path = events_path or os.path.join(
-            os.environ.get("LAAP_ROOT", r"D:\\LAAP"), ".agent_events.json"
+            str(get_laap_home()), ".agent_events.json"
         )
         self._events: List[Dict[str, Any]] = []
         self._subscriptions: Dict[str, List[str]] = {}  # event_type -> [agent_id, ...]

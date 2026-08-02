@@ -45,6 +45,7 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple, Callable
 from enum import Enum
 import time, logging, os, sys, json, re, ast, math, hashlib, threading
+from laap.config.paths import get_laap_root
 from pathlib import Path
 from collections import defaultdict, Counter
 
@@ -232,7 +233,7 @@ class PerformanceTracker:
 
     def _count_imports(self) -> int:
         try:
-            root = Path(os.environ.get("LAAP_ROOT", r"D:\LAAP")) / "laap" / "agi"
+            root = get_laap_root() / "laap" / "agi"
             if root.exists():
                 total = 0
                 for f in root.rglob("*.py"):
@@ -450,7 +451,7 @@ class TechDebtMonitor:
     """
 
     def __init__(self, repo_root: str = ""):
-        self.repo_root = repo_root or os.environ.get("LAAP_ROOT", r"D:\LAAP")
+        self.repo_root = repo_root or str(get_laap_root())
         self.baseline_smi: float = 0.0
         self.current_smi: float = 0.0
         self.smi_history: List[float] = []
@@ -581,7 +582,7 @@ class QualityAssurance:
     """
 
     def __init__(self, repo_root: str = ""):
-        self.repo_root = repo_root or os.environ.get("LAAP_ROOT", r"D:\LAAP")
+        self.repo_root = repo_root or str(get_laap_root())
         self.perf = PerformanceTracker()
         self.quality = CodeQualityGate()
         self.debt = TechDebtMonitor(repo_root)
@@ -701,7 +702,7 @@ class QualityAssurance:
 
 def integrate_quality_assurance(agent) -> QualityAssurance:
     qa = QualityAssurance(
-        repo_root=os.environ.get("LAAP_ROOT", r"D:\LAAP")
+        repo_root=str(get_laap_root())
     )
     agent.quality_assurance = qa
     logger.info(f"QualityAssurance integrated into {getattr(agent, 'name', 'agent')}")

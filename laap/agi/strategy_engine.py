@@ -29,7 +29,9 @@ from collections import defaultdict, deque
 import logging
 import numpy as np
 
-sys.path.insert(0, 'D:/LAAP')
+from laap.config.paths import get_laap_home, get_laap_root
+
+sys.path.insert(0, str(get_laap_root()))
 
 logger = logging.getLogger('laap.agi.strategy_aesthetic')
 
@@ -37,7 +39,7 @@ logger = logging.getLogger('laap.agi.strategy_aesthetic')
 # 路径配置
 # ================================================================
 
-BASE_DIR = Path('D:/LAAP/data/strategy')
+BASE_DIR = get_laap_home() / 'data' / 'strategy'
 BASE_DIR.mkdir(parents=True, exist_ok=True)
 
 TEMPLATE_DIR = BASE_DIR / 'templates'

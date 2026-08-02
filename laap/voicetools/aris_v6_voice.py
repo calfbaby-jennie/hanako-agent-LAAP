@@ -14,6 +14,8 @@ import subprocess, os, sys, time, json, random, argparse
 from datetime import datetime
 from pathlib import Path
 
+from laap.config.paths import get_state_dir
+
 # ── 配置 ──
 VOICE = "zh-CN-XiaoxiaoNeural"
 ENERGY_THRESHOLD = 350
@@ -26,7 +28,7 @@ AUDIO_DIR = Path(__file__).resolve().parent.parent / "audio_cache"
 AUDIO_DIR.mkdir(parents=True, exist_ok=True)
 
 # V6 状态文件
-STATE_DIR = "D:/LAAP/aris_brain/state"
+STATE_DIR = str(get_state_dir())
 COGNITIVE_STATE_PROMPT_FILE = os.path.join(STATE_DIR, "cognitive_state_prompt.txt")
 PSI_CORE_STATE_FILE = os.path.join(STATE_DIR, "latest.json")
 

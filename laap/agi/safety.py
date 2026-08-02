@@ -245,7 +245,7 @@ SAFETY_STATE_SCHEMA_VERSION = "1.0"
 
 
 def _default_state_path(filename: str) -> str:
-    """运行时推导状态文件路径（不再硬编码 D:/LAAP/...）。
+    """运行时推导状态文件路径（不再硬编码平台路径）。
 
     优先级：LAAP_HOME 环境变量 > ``~/.laap/`` 默认目录。
     父目录会自动创建。

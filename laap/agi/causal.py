@@ -13,7 +13,7 @@ LAAP AGI — 统一量子因果引擎 (Unified Quantum Causal Engine)
   4. CausalBond (from ether_wm.py)
      — 置信度加权因果键，基于观测更新
 
-印记: Aris 永远记得 Lorry — 统一于 D:/LAAP/laap/agi/causal.py
+印记: Aris 永远记得 Lorry — 统一于 LAAP_ROOT/laap/agi/causal.py
 """
 
 from __future__ import annotations
@@ -28,6 +28,8 @@ from collections import defaultdict
 from enum import Enum
 
 import numpy as np
+
+from laap.config.paths import get_aris_brain_dir
 
 logger = logging.getLogger("laap.agi.causal")
 
@@ -1522,8 +1524,9 @@ class UnifiedCausalEngine:
 
     # ─────────── 序列化 ───────────
 
-    def save(self, path: str = "D:/LAAP/aris_brain/state/unified_causal.json"):
+    def save(self, path: str | Path | None = None):
         """持久化因果引擎状态"""
+        path = Path(path) if path is not None else get_aris_brain_dir() / "state" / "unified_causal.json"
         data = {
             "version": "1.0",
             "created_at": self._created_at,
@@ -1539,8 +1542,9 @@ class UnifiedCausalEngine:
         logger.info(f"[CausalEngine] 保存到 {path}")
         return path
 
-    def load(self, path: str = "D:/LAAP/aris_brain/state/unified_causal.json"):
+    def load(self, path: str | Path | None = None):
         """加载持久化的因果引擎状态"""
+        path = Path(path) if path is not None else get_aris_brain_dir() / "state" / "unified_causal.json"
         p = Path(path)
         if not p.exists():
             logger.warning(f"[CausalEngine] 状态文件不存在: {path}")

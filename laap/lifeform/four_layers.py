@@ -18,7 +18,7 @@ TrueRSI + HarnessX）。本模块提供每层的产品级抽象与最小心智�
         SelfEvolvingSaaS, KnowledgeLife,
     )
 
-    repo = LivingCodeRepo(repo_root="D:/LAAP", github_repo="your-org/laap")
+    repo = LivingCodeRepo(repo_root="/path/to/laap", github_repo="your-org/laap")
     fixed = repo.auto_fix_issues(max_issues=3)
 
     employee = DigitalEmployee(role="devops", owner="ops-team")

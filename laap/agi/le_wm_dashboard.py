@@ -23,7 +23,13 @@ from dataclasses import dataclass
 
 import numpy as np
 
-sys.path.insert(0, 'D:/LAAP')
+from laap.config.paths import get_laap_home, get_laap_root
+
+sys.path.insert(0, str(get_laap_root()))
+
+_DATA_DIR = str(get_laap_home() / "data" / "le_wm_training_data")
+_MODEL_DIR = str(get_laap_home() / "models" / "le_wm")
+_OUTPUT_DIR = get_laap_home()
 
 from laap.agi.le_wm_engine import (
     LeWMEngine, LeWMConfig, sigreg,
@@ -44,9 +50,9 @@ class DashboardStateCollector:
     
     def __init__(
         self,
-        model_path: str = 'D:/LAAP/models/le_wm/best_real_model.npz',
-        data_dir: str = 'D:/LAAP/data/le_wm_training_data',
-        log_path: str = 'D:/LAAP/models/le_wm/training_log.json',
+        model_path: str = str(Path(_MODEL_DIR) / 'best_real_model.npz'),
+        data_dir: str = _DATA_DIR,
+        log_path: str = str(Path(_MODEL_DIR) / 'training_log.json'),
     ):
         self.model_path = Path(model_path)
         self.data_dir = Path(data_dir)
@@ -497,7 +503,7 @@ h2 {{ font-size: 1.1rem; font-weight: 500; border-left: 2px solid #537D96; paddi
 # ═══════════════════════════════════════════════════════════════
 
 def generate_dashboard(
-    output_path: str = 'D:/LAAP/le_wm_dashboard.html',
+    output_path: str = str(_OUTPUT_DIR / 'le_wm_dashboard.html'),
     auto_refresh: bool = False,
 ) -> str:
     """生成并保存 Dashboard"""
@@ -529,7 +535,7 @@ def generate_dashboard(
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument('--output', default='D:/LAAP/le_wm_dashboard.html')
+    parser.add_argument('--output', default=str(_OUTPUT_DIR / 'le_wm_dashboard.html'))
     parser.add_argument('--auto-refresh', action='store_true', help='添加自动刷新')
     args = parser.parse_args()
     

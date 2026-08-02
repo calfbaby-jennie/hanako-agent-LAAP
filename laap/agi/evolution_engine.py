@@ -24,9 +24,10 @@ from collections import defaultdict
 
 logger = logging.getLogger("laap.agi.evolution_engine")
 
-LAAP_ROOT = Path(os.environ.get("LAAP_ROOT", r"D:\LAAP"))
-SKILL_DIR = Path(os.environ.get("HERMES_HOME", 
-    os.path.expanduser("~/AppData/Local/hermes/profiles/laap-avatar/skills")))
+from laap.config.paths import get_laap_root
+
+LAAP_ROOT = get_laap_root()
+SKILL_DIR = Path(os.environ.get("HERMES_HOME", str(Path.home() / ".hermes"))) / "profiles" / "laap-avatar" / "skills"
 MEMORY_FILE = LAAP_ROOT / ".evolution_memory.json"
 
 # ═══════════════════════════════════════════════════════════════
@@ -146,12 +147,14 @@ class GitHubFusion:
     
     def _generate_integration_plan(self, repo: RepoInfo, requirement: str) -> str:
         """Generate a step-by-step plan to integrate this project."""
+        external_dir = str(LAAP_ROOT / f"external_{repo.name}")
+        bridge_dir = str(LAAP_ROOT / "laap" / "integrations")
         steps = [
-            f"1. Clone: git clone https://github.com/{repo.full_name}.git D:\\LAAP\\external_{repo.name}",
-            f"2. Read docs: cat D:\\LAAP\\external_{repo.name}\\README.md",
-            f"3. Check deps: ls D:\\LAAP\\external_{repo.name}\\requirements.txt 2>/dev/null || ls D:\\LAAP\\external_{repo.name}\\package.json",
-            f"4. Install: pip install -r D:\\LAAP\\external_{repo.name}\\requirements.txt (or npm install)",
-            f"5. Create bridge: Write adapter module in D:\\LAAP\\laap\\integrations\\{repo.name}_bridge.py",
+            f"1. Clone: git clone https://github.com/{repo.full_name}.git {external_dir}",
+            f"2. Read docs: cat {external_dir}/README.md",
+            f"3. Check deps: ls {external_dir}/requirements.txt 2>/dev/null || ls {external_dir}/package.json",
+            f"4. Install: pip install -r {external_dir}/requirements.txt (or npm install)",
+            f"5. Create bridge: Write adapter module in {bridge_dir}/{repo.name}_bridge.py",
             f"6. Test: python -c \"from laap.integrations.{repo.name}_bridge import ...\"",
             f"7. Register in core.py if needed",
         ]

@@ -27,7 +27,11 @@ import threading
 
 import numpy as np
 
-sys.path.insert(0, 'D:/LAAP')
+from laap.config.paths import get_laap_home, get_laap_root
+
+sys.path.insert(0, str(get_laap_root()))
+
+_DATA_DIR = str(get_laap_home() / "data" / "le_wm_training_data")
 
 logger = logging.getLogger("laap.agi.psi_data_collector")
 
@@ -46,7 +50,7 @@ class DataCollectorConfig:
     buffer_size: int = 10000   # 内存缓冲区最大条目数
     
     # 持久化
-    save_dir: str = 'D:/LAAP/data/le_wm_training_data'
+    save_dir: str = _DATA_DIR
     save_interval: int = 500   # 每 N 条写入一次磁盘
     save_format: str = 'npz'   # npz 或 jsonl
     
@@ -563,7 +567,7 @@ class DatasetReplayLoader:
       - 验证数据完整性
     """
     
-    def __init__(self, data_dir: str = 'D:/LAAP/data/le_wm_training_data'):
+    def __init__(self, data_dir: str = _DATA_DIR):
         self.data_dir = Path(data_dir)
     
     def list_batches(self) -> List[Path]:
@@ -666,7 +670,7 @@ def install_data_collector(
 
 
 def get_collected_dataset(
-    data_dir: str = 'D:/LAAP/data/le_wm_training_data'
+    data_dir: str = _DATA_DIR
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
     获取所有已收集的训练数据。
@@ -678,7 +682,7 @@ def get_collected_dataset(
     return loader.load_all()
 
 
-def print_collection_stats(data_dir: str = 'D:/LAAP/data/le_wm_training_data'):
+def print_collection_stats(data_dir: str = _DATA_DIR):
     """打印数据收集统计"""
     loader = DatasetReplayLoader(data_dir)
     stats = loader.stats()

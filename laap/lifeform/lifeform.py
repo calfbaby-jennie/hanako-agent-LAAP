@@ -21,6 +21,7 @@ import os
 import sys
 import time
 import uuid
+from laap.config.paths import get_laap_root
 from dataclasses import dataclass, field, asdict
 from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple
@@ -232,7 +233,7 @@ class Lifeform:
         logger.info(f"Lifeform waking: {self.config.name} ({self.config.role})")
         self.state.updated_at = time.time()
 
-        sys.path.insert(0, "D:/LAAP")
+        sys.path.insert(0, str(get_laap_root()))
 
         all_ok = True
 
