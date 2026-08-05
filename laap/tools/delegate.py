@@ -26,18 +26,17 @@ def _delegate_file() -> Path:
 
 
 def _load_registry() -> Dict[str, Any]:
+    default_registry: Dict[str, Any] = {"tasks": {}}
     file_path = _delegate_file()
     if not file_path.exists():
-        return {"tasks": {}}
+        return default_registry
     try:
         with open(file_path, "r", encoding="utf-8") as f:
             data = json.load(f)
-            if isinstance(data, dict) and isinstance(data.get("tasks"), dict):
-                return data
-            return {"tasks": {}}
     except Exception as exc:
         logger.warning(f"Failed to load delegate registry: {exc}")
-        return {"tasks": {}}
+        return default_registry
+    return data if isinstance(data, dict) and isinstance(data.get("tasks"), dict) else default_registry
 
 
 def _save_registry(data: Dict[str, Any]) -> None:
