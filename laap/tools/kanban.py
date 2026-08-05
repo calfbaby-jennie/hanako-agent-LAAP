@@ -25,18 +25,19 @@ def _kanban_file() -> Path:
 
 
 def _load_kanban() -> Dict[str, List[Dict[str, str]]]:
+    empty: Dict[str, List[Dict[str, str]]] = {"tasks": []}
     file_path = _kanban_file()
     if not file_path.exists():
-        return {"tasks": []}
+        return empty
     try:
         with open(file_path, "r", encoding="utf-8") as f:
             data = json.load(f)
-            if isinstance(data, dict) and isinstance(data.get("tasks"), list):
-                return data
-            return {"tasks": []}
     except Exception as exc:
         logger.warning(f"Failed to load kanban: {exc}")
-        return {"tasks": []}
+        return empty
+    if isinstance(data, dict) and isinstance(data.get("tasks"), list):
+        return data
+    return empty
 
 
 def _save_kanban(data: Dict[str, List[Dict[str, str]]]) -> None:
