@@ -1,0 +1,108 @@
+{
+  "manifestVersion": 1,
+  "id": "aris-engine",
+  "name": "Aris Engine",
+  "version": "3.0.0",
+  "description": "Aris 认知引擎原生集成 — PSI 需求驱动、世界模型、验算管线、贝叶斯预测、主动学习、跨平台记忆、源码级 hanako 集成（频道 + DM + 记忆查询）",
+  "minAppVersion": "0.171.3",
+  "trust": "full-access",
+  "contributes": {
+    "page": {
+      "title": {
+        "zh": "Aris 大脑",
+        "en": "Aris Brain"
+      },
+      "route": "/aris",
+      "icon": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\"><circle cx=\"12\" cy=\"12\" r=\"8\"/><path d=\"M12 4v16M4 12h16\"/><circle cx=\"12\" cy=\"12\" r=\"3\" fill=\"currentColor\"/></svg>"
+    },
+    "configuration": {
+      "properties": {
+        "arisPythonCmd": {
+          "type": "string",
+          "title": "Python 命令",
+          "description": "启动侧车的 Python 解释器路径。macOS/Linux 留空时自动使用项目 .venv/bin/python。",
+          "default": "",
+          "ui": { "control": "text" }
+        },
+        "arisSidecarPort": {
+          "type": "integer",
+          "title": "侧车端口",
+          "description": "认知引擎 HTTP 端口。默认 11521。",
+          "default": 11521,
+          "ui": { "control": "number" }
+        },
+        "arisAutoStart": {
+          "type": "boolean",
+          "title": "自动启动侧车",
+          "description": "HanaAgent 启动时自动拉起认知引擎。",
+          "default": true,
+          "ui": { "control": "switch" }
+        },
+        "arisInjectContext": {
+          "type": "boolean",
+          "title": "自动注入认知上下文",
+          "description": "每轮对话自动注入 PSI 需求状态和跨平台记忆。",
+          "default": true,
+          "ui": { "control": "switch" }
+        },
+        "arisEnableLearning": {
+          "type": "boolean",
+          "title": "启用主动学习",
+          "description": "允许引擎自动搜索并学习新知识。",
+          "default": false,
+          "ui": { "control": "switch" }
+        },
+        "arisCognitiveBusUrl": {
+          "type": "string",
+          "title": "CognitiveBus WebSocket URL",
+          "description": "LAAP CognitiveBus WebSocket 地址，用于意识事件桥接。默认 ws://127.0.0.1:8765。",
+          "default": "ws://127.0.0.1:8765",
+          "ui": { "control": "text" }
+        },
+        "arisAgentDir": {
+          "type": "string",
+          "title": "Aris agent 目录",
+          "description": "Aris agent 目录（含 memory/、dm/、channels.md 等）。留空时使用 HANA_HOME/agents/aris。",
+          "default": "",
+          "ui": { "control": "text" }
+        },
+        "arisDefaultChannel": {
+          "type": "string",
+          "title": "默认频道名",
+          "description": "Aris 默认频道名，插件激活时自动创建。默认 aris-lounge。",
+          "default": "aris-lounge",
+          "ui": { "control": "text" }
+        },
+        "arisHanakoServerUrl": {
+          "type": "string",
+          "title": "hanako server 基址",
+          "description": "hanako server REST API 基址，用于频道/DM API 调用。默认 http://127.0.0.1:2668。",
+          "default": "http://127.0.0.1:2668",
+          "ui": { "control": "text" }
+        }
+      }
+    },
+    "tools": [
+      {
+        "id": "aris_channel_send",
+        "title": { "zh": "频道发送", "en": "Channel Send" },
+        "description": { "zh": "以 Aris 身份向 hanako 频道发送消息", "en": "Send a message to a hanako channel as Aris" }
+      },
+      {
+        "id": "aris_dm_send",
+        "title": { "zh": "DM 发送", "en": "DM Send" },
+        "description": { "zh": "Aris 向另一 hanako agent 发送私信", "en": "Send a DM from Aris to another hanako agent" }
+      },
+      {
+        "id": "aris_memory_query",
+        "title": { "zh": "记忆查询", "en": "Memory Query" },
+        "description": { "zh": "读取 Aris 的 hanako 记忆（today/daily/week/longterm/facts/memory 或事实搜索）", "en": "Read Aris's hanako memory" }
+      },
+      {
+        "id": "aris_consciousness_state",
+        "title": { "zh": "意识状态", "en": "Consciousness State" },
+        "description": { "zh": "返回 Aris 当前意识状态（PSI/情绪/焦点/自我存在感）", "en": "Return Aris's current consciousness state" }
+      }
+    ]
+  }
+}
