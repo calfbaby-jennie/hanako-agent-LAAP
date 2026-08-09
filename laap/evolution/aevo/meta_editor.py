@@ -81,6 +81,8 @@ class MetaEditor:
         if hasattr(agent, 'rsi_engine'):
             ctx["adoption_rate"] = round(agent.rsi_engine.adoption_rate(), 3)
             ctx["noise"] = round(agent.rsi_engine.noise_level, 4)
+        if hasattr(agent, 'evo_extra') and isinstance(agent.evo_extra, dict):
+            ctx.update(agent.evo_extra)
         return ctx
 
     def _context_summary(self, ctx: dict) -> str:
@@ -98,6 +100,8 @@ class MetaEditor:
             lines.append(f"Emotion: {ctx['emotion']}")
         if ctx["failure_patterns"]:
             lines.append(f"Failures: {ctx['failure_patterns']}")
+        if ctx.get("pipeline_summary"):
+            lines.append(f"Pipeline: {ctx['pipeline_summary']}")
         lines.append(f"Skills: {ctx['skill_count']}, Adoption: {ctx['adoption_rate']}")
         return "\n".join(lines)
 

@@ -213,13 +213,14 @@ class EnhancedBugClassifier:
     """Logic-level bug analysis and classification."""
 
     PATTERNS = {
-        BugCategory.SYNTAX: ["SyntaxError", "IndentationError", "unexpected EOF"],
-        BugCategory.IMPORT: ["ImportError", "ModuleNotFoundError", "No module named"],
-        BugCategory.ATTRIBUTE: ["AttributeError", "has no attribute"],
+        BugCategory.SYNTAX: ["SyntaxError", "IndentationError", "unexpected EOF", "invalid syntax", "SyntaxError in patch"],
+        BugCategory.IMPORT: ["ImportError", "ModuleNotFoundError", "No module named", "cannot import"],
+        BugCategory.ATTRIBUTE: ["AttributeError", "has no attribute", "NameError", "is not defined"],
         BugCategory.TYPE: ["TypeError", "must be", "cannot unpack"],
         BugCategory.LOGIC: [
             "unexpected behavior", "wrong result", "incorrect",
             "off-by-one", "infinite loop", "deadlock",
+            "assert ", "AssertionError", "assertion", "FAILED", "tests failed",
         ],
         BugCategory.DESIGN: [
             "code smell", "tight coupling", "god class",
