@@ -182,6 +182,22 @@ export default function (pi) {
           pendingTurn.traceId = perceived?.ao_decision?.trace_id || null;
           pendingTurn.inputEventId = perceived?.canonical_event_id || null;
         }
+
+        // 零 LLM 规则引擎分流：safe 命中直接把确定性结果注入当轮；
+        // risky 命中只注入建议（由 LLM 判断后再执行）；未命中不注入。
+        const rules = await sidecarRequest('POST', '/rules/execute', { text: input });
+        if (pendingTurn && rules) {
+          if (rules.matched && rules.safety === 'safe') {
+            pendingTurn.rulesContext =
+              `[规则引擎快路（零LLM，${rules.latency_ms}ms）]\n`
+              + `命中规则: ${rules.rule} (置信 ${rules.confidence})\n`
+              + String(rules.output || '').slice(0, 1500);
+          } else if (rules.matched && rules.safety === 'risky') {
+            pendingTurn.rulesContext =
+              `[规则引擎建议（高风险未自动执行）]\n`
+              + `命中规则: ${rules.rule}，涉及工具: ${(rules.tools || []).join(', ')}`;
+          }
+        }
       }
       const state = isCognitiveContextInjectionEnabled()
         ? await sidecarRequest('GET', '/cognitive_context')
@@ -222,10 +238,16 @@ export default function (pi) {
   // system-prompt/cache-prefix layer. `context` transformations are ephemeral:
   // Pi applies them to a deep copy immediately before each provider request.
   pi.on('context', (event) => {
-    const cognition = pendingTurn?.cognitiveContext;
-    if (!cognition || !isCognitiveContextInjectionEnabled()) return undefined;
+    const parts = [];
+    if (pendingTurn?.cognitiveContext && isCognitiveContextInjectionEnabled()) {
+      parts.push(pendingTurn.cognitiveContext);
+    }
+    if (pendingTurn?.rulesContext) {
+      parts.push(pendingTurn.rulesContext);
+    }
+    if (!parts.length) return undefined;
     return {
-      messages: injectTurnScopedCognitiveContext(event.messages, cognition),
+      messages: injectTurnScopedCognitiveContext(event.messages, parts.join('\n\n')),
     };
   });
 
