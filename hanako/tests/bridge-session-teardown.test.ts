@@ -358,6 +358,75 @@ describe("BridgeSessionManager teardown", () => {
     expect(agent.memoryTicker.notifyTurn).toHaveBeenCalledWith(mgrPath);
   });
 
+  it("buffers Aris bridge deltas until a PSI-reviewed final message is available", async () => {
+    const agent = makeAgent(rootDir, "hanako") as any;
+    agent.agentName = "aris";
+    const mgrPath = path.join(agent.sessionDir, "bridge", "owner", "psi-gated.jsonl");
+    const manager = new BridgeSessionManager(makeDeps(agent));
+    sessionManagerCreateMock.mockReturnValue({ getSessionFile: () => mgrPath });
+    const onDelta = vi.fn();
+    const subscribers = [];
+    const session = {
+      model: { input: ["text"] },
+      prompt: vi.fn(async () => {
+        for (const fn of subscribers) {
+          fn({ type: "message_update", assistantMessageEvent: { type: "text_delta", delta: "未审议草稿" } });
+          expect(onDelta).not.toHaveBeenCalled();
+          fn({
+            type: "message_end",
+            message: {
+              role: "assistant",
+              stopReason: "stop",
+              content: [{ type: "text", text: "审议后正文" }],
+              psiReview: { approved: true, issues: [] },
+            },
+          });
+        }
+      }),
+      subscribe: vi.fn((fn) => { subscribers.push(fn); return vi.fn(); }),
+      dispose: vi.fn(),
+      sessionManager: { getSessionFile: () => mgrPath },
+    };
+    createAgentSessionMock.mockResolvedValue({ session });
+
+    await expect(manager.executeExternalMessage("hello", "psi-gated", null, {
+      agentId: "hanako", onDelta,
+    })).resolves.toMatchObject({ text: "审议后正文", error: null });
+    expect(onDelta).toHaveBeenCalledTimes(1);
+    expect(onDelta).toHaveBeenCalledWith("审议后正文", "审议后正文");
+  });
+
+  it("fails closed for Aris bridge output when PSI review metadata is missing", async () => {
+    const agent = makeAgent(rootDir, "hanako") as any;
+    agent.agentName = "aris";
+    const mgrPath = path.join(agent.sessionDir, "bridge", "owner", "psi-missing.jsonl");
+    const manager = new BridgeSessionManager(makeDeps(agent));
+    sessionManagerCreateMock.mockReturnValue({ getSessionFile: () => mgrPath });
+    const onDelta = vi.fn();
+    const subscribers = [];
+    const session = {
+      model: { input: ["text"] },
+      prompt: vi.fn(async () => {
+        for (const fn of subscribers) {
+          fn({ type: "message_update", assistantMessageEvent: { type: "text_delta", delta: "必须销毁" } });
+          fn({ type: "message_end", message: { role: "assistant", stopReason: "stop", content: "必须销毁" } });
+        }
+      }),
+      subscribe: vi.fn((fn) => { subscribers.push(fn); return vi.fn(); }),
+      dispose: vi.fn(),
+      sessionManager: { getSessionFile: () => mgrPath },
+    };
+    createAgentSessionMock.mockResolvedValue({ session });
+
+    await expect(manager.executeExternalMessage("hello", "psi-missing", null, {
+      agentId: "hanako", onDelta,
+    })).resolves.toMatchObject({
+      text: null,
+      error: "PSI output gate rejected reply: missing review result",
+    });
+    expect(onDelta).not.toHaveBeenCalled();
+  });
+
   it("returns provider message_end errors as structured diagnostics instead of swallowing them", async () => {
     const agent = makeAgent(rootDir);
     const mgrPath = path.join(agent.sessionDir, "bridge", "owner", "error.jsonl");

@@ -26,6 +26,12 @@ import { normalizeBridgePermissionMode, SESSION_PERMISSION_MODES } from "./sessi
 import { uniqueToolNames } from "../shared/tool-categories.ts";
 import { collectMediaItems } from "../lib/tools/media-details.ts";
 import { formatSettingsUpdateText } from "../lib/tools/settings-update-result.ts";
+import {
+  finalizedAssistantText,
+  isArisPsiGatedAgent,
+  isIntermediateToolMessage,
+  psiReviewResult,
+} from "../lib/psi-output-gate.ts";
 import { materializeBridgeInboundFiles } from "../lib/session-files/bridge-inbound-files.ts";
 import {
   modelSupportsDirectAudioInput,
@@ -1126,7 +1132,10 @@ export class BridgeSessionManager {
         message: displayMessage,
       }, activeSessionPath);
 
-      // 捕获文本输出（capturedText / providerErrorMessage 声明见方法顶部）
+      // Aris 的正文由 PSI message_end 审议后一次性放行；其他 Agent 保持流式。
+      const psiOutputGated = isArisPsiGatedAgent(agent);
+      let psiDraftText = "";
+      let psiFinalized = false;
       const unsub = session.subscribe((event) => {
         recordBridgeAssistantUsage({
           ledger: this._deps.getUsageLedger?.(),
@@ -1140,8 +1149,12 @@ export class BridgeSessionManager {
           const sub = event.assistantMessageEvent;
           if (sub?.type === "text_delta") {
             const delta = sub.delta || "";
-            capturedText += delta;
-            try { opts.onDelta?.(delta, capturedText); } catch {}
+            if (psiOutputGated) {
+              psiDraftText += delta;
+            } else {
+              capturedText += delta;
+              try { opts.onDelta?.(delta, capturedText); } catch {}
+            }
           }
         } else if (event.type === "tool_execution_end" && !event.isError) {
           toolMediaUrls.push(...collectMediaItems(event.result?.details?.media));
@@ -1162,6 +1175,20 @@ export class BridgeSessionManager {
           const settingsUpdateText = formatSettingsUpdateText(event.result?.details?.settingsUpdate);
           if (settingsUpdateText) {
             capturedText += (capturedText ? "\n\n" : "") + settingsUpdateText;
+          }
+        }
+        if (psiOutputGated && event.type === "message_end" && event.message?.role === "assistant"
+          && !isIntermediateToolMessage(event.message)) {
+          const review = psiReviewResult(event.message);
+          const releasable = finalizedAssistantText(event.message);
+          psiDraftText = "";
+          psiFinalized = true;
+          if (review.present) {
+            capturedText = releasable;
+            try { if (releasable) opts.onDelta?.(releasable, releasable); } catch {}
+          } else {
+            capturedText = "";
+            providerErrorMessage = "PSI output gate rejected reply: missing review result";
           }
         }
         const messageEndError = getProviderMessageEndError(event);
@@ -1217,6 +1244,11 @@ export class BridgeSessionManager {
         this._activeSessions.delete(sessionKey);
         this._activeSessionRoles.delete(sessionKey);
         this._emitSessionEvent({ type: "session_status", isStreaming: false }, activeSessionPath);
+      }
+
+      if (psiOutputGated && !psiFinalized && psiDraftText) {
+        capturedText = "";
+        providerErrorMessage = providerErrorMessage || "PSI output gate rejected reply: turn ended without review";
       }
 
       // 更新索引 + 元数据

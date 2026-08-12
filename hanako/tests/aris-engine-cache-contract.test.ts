@@ -39,8 +39,13 @@ describe('Aris cognitive context cache contract', () => {
     expect(extensionSource).toContain("pi.on('context'");
     expect(extensionSource).toContain("pi.on('tool_result'");
     expect(extensionSource).toContain("pi.on('message_end'");
-    expect(extensionSource).toContain("'/perceive'");
+    expect(extensionSource).toContain("'/cognitive/preflight'");
+    expect(extensionSource).toContain("'/cognitive/review'");
     expect(extensionSource).toContain("'/after_turn'");
+    expect(extensionSource).toContain('PSI_STRICT');
+    expect(extensionSource).toContain('visibleResponse');
+    expect(extensionSource).toContain('psiReview');
+    expect(extensionSource).toContain('}, 75000);');
     expect(extensionSource).toContain("'Content-Length'");
   });
 

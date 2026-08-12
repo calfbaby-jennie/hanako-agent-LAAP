@@ -9,7 +9,7 @@
  *  - fire-and-forget 调 /world/perceive，把对话轮次喂给世界模型
  *  - 解析 RSI 决策指令（采纳/拒绝/归档 rsi_xxx）并调 /rsi/decide
  *
- * 纪律：sidecar 不可达时静默返回，绝不中断对话。
+ * 纪律：完整 PSI 为严格前置门。默认不可达即中断当轮，禁止 LLM 静默绕过大脑。
  */
 
 import { readFileSync } from 'node:fs';
@@ -22,6 +22,7 @@ const SIDECAR_HOST = '127.0.0.1';
 const SIDECAR_PORT = Number(process.env.ARIS_SIDECAR_PORT || 11521);
 const LAAP_HOME = process.env.LAAP_HOME || join(homedir(), '.laap');
 const TOKEN_PATH = join(LAAP_HOME, 'state', 'aris-sidecar', 'aris-sidecar.token');
+const PSI_STRICT = !['0', 'false', 'off'].includes(String(process.env.ARIS_PSI_STRICT || 'true').toLowerCase());
 
 let cachedToken = null;
 
@@ -108,7 +109,7 @@ function getToken() {
   return cachedToken;
 }
 
-function sidecarRequest(method, path, body) {
+function sidecarRequest(method, path, body, timeoutMs = 3000) {
   return new Promise((resolve) => {
     const token = getToken();
     const payload = body !== undefined ? JSON.stringify(body) : null;
@@ -118,7 +119,7 @@ function sidecarRequest(method, path, body) {
         port: SIDECAR_PORT,
         path,
         method,
-        timeout: 3000,
+        timeout: timeoutMs,
         headers: {
           'Content-Type': 'application/json',
           ...(payload !== null ? { 'Content-Length': Buffer.byteLength(payload) } : {}),
@@ -172,15 +173,22 @@ export default function (pi) {
       if (input && !continuingTurn) {
         const turnId = `hana_${Date.now()}_${Math.random().toString(16).slice(2, 10)}`;
         pendingTurn = { input, sessionId, turnId, toolResults: [] };
-        const perceived = await sidecarRequest('POST', '/perceive', {
+        const preflight = await sidecarRequest('POST', '/cognitive/preflight', {
           text: input,
           source: 'hana-extension',
           session_id: sessionId,
           turn_id: turnId,
-        });
+        }, 20000);
+        if (!preflight?.ok && PSI_STRICT) {
+          pendingTurn = null;
+          const degraded = Array.isArray(preflight?.degraded) ? preflight.degraded.join(', ') : 'sidecar/ao-psi';
+          throw new Error(`完整 PSI 前置处理失败，已阻止 LLM 直出。降级组件: ${degraded}`);
+        }
         if (pendingTurn) {
-          pendingTurn.traceId = perceived?.ao_decision?.trace_id || null;
-          pendingTurn.inputEventId = perceived?.canonical_event_id || null;
+          pendingTurn.traceId = preflight?.ao_decision?.trace_id || null;
+          pendingTurn.inputEventId = preflight?.perception?.canonical_event_id || null;
+          pendingTurn.cognitiveContext = String(preflight?.context || '');
+          pendingTurn.psiComplete = Boolean(preflight?.ok);
         }
 
         // 零 LLM 规则引擎分流：safe 命中直接把确定性结果注入当轮；
@@ -199,11 +207,10 @@ export default function (pi) {
           }
         }
       }
-      const state = isCognitiveContextInjectionEnabled()
-        ? await sidecarRequest('GET', '/cognitive_context')
-        : null;
-      if (pendingTurn && state && state.context) {
-        pendingTurn.cognitiveContext = String(state.context);
+      // preflight 已返回与本次输入绑定的完整认知快照。旧 GET 仅作为非严格兼容回退。
+      if (pendingTurn && !pendingTurn.cognitiveContext && isCognitiveContextInjectionEnabled()) {
+        const state = await sidecarRequest('GET', '/cognitive_context');
+        if (state?.context) pendingTurn.cognitiveContext = String(state.context);
       }
 
       // RSI 决策指令：命中则调 sidecar /rsi/decide
@@ -228,8 +235,9 @@ export default function (pi) {
         },
       }).catch(() => {});
 
-    } catch {
-      // sidecar 不可达：静默，不中断对话
+    } catch (error) {
+      if (PSI_STRICT) throw error;
+      // 显式关闭严格模式时允许兼容降级。
     }
     return undefined;
   });
@@ -267,12 +275,25 @@ export default function (pi) {
       return undefined;
     }
     const turn = pendingTurn;
+    const review = await sidecarRequest('POST', '/cognitive/review', {
+      user_input: turn.input,
+      response: response.slice(0, 24000),
+      session_id: turn.sessionId,
+      turn_id: turn.turnId,
+      trace_id: turn.traceId,
+      tool_results: turn.toolResults,
+    }, 75000);
+    const reviewApproved = Boolean(review?.approved);
+    const visibleResponse = reviewApproved
+      ? String(review?.rewritten_response || response)
+      : `[PSI 发送门已阻止回复] ${(review?.issues || ['review_unreachable']).join(', ')}`;
+    turn.psiReview = review;
     pendingTurn = null;
-    const success = stopReason !== 'error'
+    const success = reviewApproved && stopReason !== 'error'
       && !turn.toolResults.some((item) => item.status === 'error');
     await sidecarRequest('POST', '/after_turn', {
       user_input: turn.input,
-      response: response.slice(0, 24000),
+      response: visibleResponse.slice(0, 24000),
       success: success ? 1.0 : 0.0,
       tool_results: turn.toolResults,
       session_id: turn.sessionId,
@@ -281,6 +302,18 @@ export default function (pi) {
       input_event_id: turn.inputEventId,
       source: 'hana-extension',
     });
-    return undefined;
+    return {
+      message: {
+        ...event.message,
+        content: review?.rewritten_response || !reviewApproved
+          ? [{ type: 'text', text: visibleResponse }]
+          : event.message.content,
+        psiReview: {
+          approved: reviewApproved,
+          issues: review?.issues || ['review_unreachable'],
+          traceId: turn.traceId || null,
+        },
+      },
+    };
   });
 }

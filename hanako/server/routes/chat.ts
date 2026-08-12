@@ -52,6 +52,12 @@ import { isAllowedChatImageMime, isChatImageBase64WithinLimit } from "../../shar
 import { isAllowedChatVideoMime, isChatVideoBase64WithinLimit } from "../../shared/video-mime.ts";
 import { isAllowedChatAudioMime, isChatAudioBase64WithinLimit } from "../../shared/audio-mime.ts";
 import { getAssistantTextPhase } from "../../shared/text-signature.ts";
+import {
+  finalizedAssistantText,
+  isArisPsiGatedAgent,
+  isIntermediateToolMessage,
+  psiReviewResult,
+} from "../../lib/psi-output-gate.ts";
 import { summarizeToolArgs } from "../../shared/tool-arg-summary.ts";
 import fs from "fs";
 import path from "path";
@@ -416,6 +422,8 @@ export function createChatRoute(engine: any, hub: any, { upgradeWebSocket }: any
         flushedTurnInputConsumptionKeys: new Set(),
         pendingTurnCompletionNotification: null,
         pendingPhaseTextByIndex: new Map(),
+        psiPendingText: "",
+        psiReleaseSeen: false,
         turnStallTimer: null,
         lastStreamActivityAt: 0,
         lastAccessed: Date.now(),
@@ -606,6 +614,11 @@ export function createChatRoute(engine: any, hub: any, { upgradeWebSocket }: any
     emitDeferredContentEvents(sessionPath, ss, pending);
   }
 
+  function isPsiOutputGatedSession(sessionPath) {
+    const session = engine.getSessionByPath?.(sessionPath) || null;
+    return isArisPsiGatedAgent(session);
+  }
+
   function beginStreamingTurnState(sessionPath, ss, { streamId = null, flushDeferred = false } = {}) {
     if (flushDeferred) flushPendingDeferredContentEvents(sessionPath, ss);
     ss.pendingTurnCompletionNotification = null;
@@ -615,6 +628,8 @@ export function createChatRoute(engine: any, hub: any, { upgradeWebSocket }: any
     ss.moodParser.reset();
     ss.cardParser.reset();
     ss.pendingPhaseTextByIndex?.clear?.();
+    ss.psiPendingText = "";
+    ss.psiReleaseSeen = false;
     ss._cardHints = [];
     ss._cardEmitted = false;
     ss.isThinking = false;
@@ -1146,6 +1161,10 @@ export function createChatRoute(engine: any, hub: any, { upgradeWebSocket }: any
           pending.set(key, `${pending.get(key) || ""}${delta}`);
           return;
         }
+        if (isPsiOutputGatedSession(sessionPath)) {
+          ss.psiPendingText += delta;
+          return;
+        }
         emitVisibleTextDelta(delta);
       } else if (sub === "text_end") {
         const subEvent = event.assistantMessageEvent;
@@ -1156,7 +1175,12 @@ export function createChatRoute(engine: any, hub: any, { upgradeWebSocket }: any
         const buffered = pending.get(key);
         pending.delete(key);
         if (getAssistantTextPhase(block) === "commentary") return;
-        emitVisibleTextDelta(buffered ?? subEvent.content ?? block?.text ?? "");
+        const finalizedDelta = buffered ?? subEvent.content ?? block?.text ?? "";
+        if (isPsiOutputGatedSession(sessionPath)) {
+          ss.psiPendingText += finalizedDelta;
+          return;
+        }
+        emitVisibleTextDelta(finalizedDelta);
       } else if (sub === "thinking_delta") {
         flushPendingTurnInputConsumptions(sessionPath, ss, event.message);
         ss.hasThinking = true;
@@ -1453,6 +1477,20 @@ export function createChatRoute(engine: any, hub: any, { upgradeWebSocket }: any
     } else if (event.type === "message_end") {
       // Provider 级别错误（超时、连接断开等）通过 message_end 传递，不经过 message_update
       if (!ss) return;
+      if (event.message?.role === "assistant" && isPsiOutputGatedSession(sessionPath)) {
+        if (!isIntermediateToolMessage(event.message)) {
+          const review = psiReviewResult(event.message);
+          const releasable = finalizedAssistantText(event.message);
+          ss.psiPendingText = "";
+          ss.psiReleaseSeen = true;
+          if (review.present && releasable) {
+            emitVisibleTextDelta(releasable);
+          } else if (!review.present) {
+            ss.hasError = true;
+            broadcast({ type: "error", message: "PSI 输出门拒绝放行：缺少发送前审议结果", sessionPath });
+          }
+        }
+      }
       if (event.message?.role === "custom" && event.message.display === false) {
         queueConsumedTurnInput(sessionPath, ss, event.message);
       }
@@ -1481,6 +1519,11 @@ export function createChatRoute(engine: any, hub: any, { upgradeWebSocket }: any
       const turnWasAborted = ss.isAborted === true;
       const turnStreamId = ss.streamId || null;
       flushTerminalParsers();
+      if (isPsiOutputGatedSession(sessionPath) && ss.psiPendingText && !ss.psiReleaseSeen) {
+        ss.psiPendingText = "";
+        ss.hasError = true;
+        broadcast({ type: "error", message: "PSI 输出门拒绝放行：回合结束前未取得审议结果", sessionPath });
+      }
 
       // 空回复检测：本轮没有文本输出也没有工具调用，提示用户检查配置
       // 被 abort 的 turn 不弹此提示（用户主动停止 / WS 断开 / 连接超时）
@@ -1536,6 +1579,8 @@ export function createChatRoute(engine: any, hub: any, { upgradeWebSocket }: any
       ss.moodParser.reset();
       ss.cardParser.reset();
       ss.pendingPhaseTextByIndex?.clear?.();
+      ss.psiPendingText = "";
+      ss.psiReleaseSeen = false;
       ss._cardHints = [];
       ss._cardEmitted = false;
       flushPendingDeferredContentEvents(sessionPath, ss);
