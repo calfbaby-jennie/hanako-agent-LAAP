@@ -133,6 +133,9 @@ class SafetyGuard:
     # Only these directories may be targeted by mutations (defense in depth:
     # even if BLACKLIST rules allow a file, it must also live under one of these).
     WHITELIST_DIRS = {"laap/tools/", "laap/agent_core/tools/", "laap/species/code_templates/"}
+    # Hana↔PSI runtime is the sole evolvable integration adapter. The adjacent
+    # acceptance contract remains outside the whitelist to prevent reward hacking.
+    WHITELIST_FILES = {"laap/integrations/hana_psi_runtime.py"}
 
     @classmethod
     def validate_mutation(cls, mutation: CodeMutation,
@@ -149,10 +152,13 @@ class SafetyGuard:
         normalized = file_path.replace("\\", "/")
 
         # Rule 0: whitelist enforcement — target must live under a whitelisted dir
-        in_whitelist = any(normalized.startswith(w) or f"/{w}" in f"/{normalized}"
-                           for w in cls.WHITELIST_DIRS)
+        in_whitelist = (
+            normalized in cls.WHITELIST_FILES
+            or any(normalized.startswith(w) or f"/{w}" in f"/{normalized}"
+                   for w in cls.WHITELIST_DIRS)
+        )
         if not in_whitelist:
-            allowed = ", ".join(sorted(cls.WHITELIST_DIRS))
+            allowed = ", ".join(sorted(cls.WHITELIST_DIRS | cls.WHITELIST_FILES))
             return False, (
                 f"Target file '{normalized}' is not in a whitelisted directory. "
                 f"Allowed prefixes: {allowed}"
