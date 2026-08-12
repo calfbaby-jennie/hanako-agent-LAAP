@@ -178,7 +178,7 @@ export default function (pi) {
           source: 'hana-extension',
           session_id: sessionId,
           turn_id: turnId,
-        }, 20000);
+        }, 60000);
         if (!preflight?.ok && PSI_STRICT) {
           pendingTurn = null;
           const degraded = Array.isArray(preflight?.degraded) ? preflight.degraded.join(', ') : 'sidecar/ao-psi';
