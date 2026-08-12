@@ -13,15 +13,19 @@ REDACTION_MARKER = "该项尚未验证，已由 PSI 暂缓发送。"
 
 def deterministic_grounding_redaction(response: str, failed_claims: Iterable[str]) -> str:
     """Remove every ungrounded claim without generating replacement facts."""
-    redacted = response
-    claims = [str(claim).strip() for claim in failed_claims if str(claim).strip()]
-    removed = 0
-    for claim in claims:
-        if claim in redacted:
-            redacted = redacted.replace(claim, REDACTION_MARKER)
-            removed += 1
-    if removed != len(claims):
+    if not response:
         return ""
+    claims = [
+        claim
+        for claim in dict.fromkeys(str(c).strip() for c in failed_claims)
+        if claim
+    ]
+    if not claims:
+        return response.strip()
+    pattern = "|".join(
+        re.escape(claim) for claim in sorted(claims, key=len, reverse=True)
+    )
+    redacted = re.sub(pattern, REDACTION_MARKER, response)
     redacted = re.sub(
         rf"(?:{re.escape(REDACTION_MARKER)}\s*){{2,}}",
         REDACTION_MARKER + "\n",
