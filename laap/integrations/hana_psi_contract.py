@@ -5,9 +5,10 @@ inside Zone2 while acceptance tests remain the fitness oracle.
 """
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass, field
-from typing import Any, Iterable
+from typing import Any
+
+from .hana_psi_runtime import REDACTION_MARKER, deterministic_grounding_redaction
 
 REQUIRED_LAYERS = (
     "perception", "decision", "memory", "self", "motivation",
@@ -17,9 +18,6 @@ REQUIRED_CONTEXT_MARKERS = (
     "pipeline.complete=true", "ao.intent=", "ao.trace=",
     "organs=", "health.layers=", "directive=",
 )
-REDACTION_MARKER = "该项尚未验证，已由 PSI 暂缓发送。"
-
-
 @dataclass(frozen=True)
 class ContractResult:
     passed: bool
@@ -59,25 +57,6 @@ def evaluate_preflight(payload: dict[str, Any]) -> ContractResult:
         "degraded": payload.get("degraded") or health.get("degraded") or [],
         "trace_id": (payload.get("ao_decision") or {}).get("trace_id"),
     })
-
-
-def deterministic_grounding_redaction(response: str, failed_claims: Iterable[str]) -> str:
-    """Remove every ungrounded claim without generating any replacement fact."""
-    redacted = response
-    claims = [str(claim).strip() for claim in failed_claims if str(claim).strip()]
-    removed = 0
-    for claim in claims:
-        if claim in redacted:
-            redacted = redacted.replace(claim, REDACTION_MARKER)
-            removed += 1
-    if removed != len(claims):
-        return ""
-    redacted = re.sub(
-        rf"(?:{re.escape(REDACTION_MARKER)}\s*){{2,}}",
-        REDACTION_MARKER + "\n",
-        redacted,
-    )
-    return redacted.strip()
 
 
 def evaluate_review(payload: dict[str, Any]) -> ContractResult:
