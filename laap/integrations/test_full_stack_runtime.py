@@ -117,6 +117,25 @@ def test_action_gate_revokes_persisted_authority(tmp_path):
     assert revoked["allowed"] is False
 
 
+def test_action_gate_distinguishes_action_words_in_discussion(tmp_path):
+    rt = runtime(tmp_path)
+    discussion = rt.evaluate_action(
+        "exec_command", {"cmd": "python3 repair.py"},
+        session_id="discussion", user_intent="分析服务为什么启动失败，以及修复的代价",
+    )
+    assert discussion["allowed"] is False
+    generic_delegation = rt.evaluate_action(
+        "edit", {"path": "/workspace/a"},
+        session_id="delegation", user_intent="由你完成分析报告",
+    )
+    assert generic_delegation["allowed"] is False
+    imperative = rt.evaluate_action(
+        "edit", {"path": "/workspace/a"},
+        session_id="imperative", user_intent="把这个分类缺陷修复并验证",
+    )
+    assert imperative["allowed"] is True
+
+
 def test_action_gate_blocks_destructive_shell(tmp_path):
     rt = runtime(tmp_path)
     result = rt.evaluate_action("exec_command", {"cmd": "rm -rf /"}, user_intent="运行测试")

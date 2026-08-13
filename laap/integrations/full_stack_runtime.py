@@ -36,14 +36,19 @@ _EXTERNAL_TOOLS = {
     "media_generate-video", "install_skill", "update_settings",
 }
 _MUTATING_WORDS = re.compile(
-    r"(?:执行|运行|启动|停止|修改|改写|编辑|写入|创建|安装|部署|发送|通知|删除|修复|"
-    r"implement|edit|write|create|install|deploy|send|delete|fix|run|start|stop)", re.I,
+    r"(?:^|[。！？!?\n]\s*)(?:请|立即|直接|现在|继续|开始|可以|授权你?)?\s*"
+    r"(?:执行|运行|启动|拉起|重启|停止|修改|改写|编辑|写入|创建|安装|部署|发送|通知|删除|修复|"
+    r"implement|edit|write|create|install|deploy|send|delete|fix|run|start|restart|stop)", re.I,
+)
+_OBJECT_MUTATION_AUTHORITY = re.compile(
+    r"(?:^|[。！？!?\n]\s*)(?:请|立即|直接|现在|继续)?\s*(?:把|将).{1,48}"
+    r"(?:修复|修改|改写|编辑|写入|创建|安装|部署|删除|启动|拉起|重启)", re.I,
 )
 _RESOLUTION_AUTHORITY = re.compile(
     r"(?:递归|继续|立即|直接|直到|直至).{0,24}(?:解决|修好|恢复|生效)", re.I,
 )
 _TASK_AUTHORITY = re.compile(
-    r"(?:授权|由你|自主).{0,40}(?:完成|修复|处理|执行|拉起|重启|恢复)", re.I,
+    r"(?:授权你?|自主).{0,60}(?:修复|修改|执行|安装|部署|拉起|重启|恢复|写入|创建)", re.I,
 )
 _REVOKE_AUTHORITY = re.compile(r"(?:撤销|取消|暂停|停止).{0,16}(?:授权|自主执行)", re.I)
 _DESTRUCTIVE = re.compile(
@@ -311,6 +316,7 @@ class FullStackRuntime:
             self._save_authorizations()
         explicit_user_authority = not revoking_authority and bool(
             _MUTATING_WORDS.search(user_intent or "")
+            or _OBJECT_MUTATION_AUTHORITY.search(user_intent or "")
             or _RESOLUTION_AUTHORITY.search(user_intent or "")
             or _TASK_AUTHORITY.search(user_intent or "")
         )
