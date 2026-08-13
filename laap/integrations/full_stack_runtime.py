@@ -38,6 +38,9 @@ _MUTATING_WORDS = re.compile(
     r"(?:执行|运行|启动|停止|修改|改写|编辑|写入|创建|安装|部署|发送|通知|删除|修复|"
     r"implement|edit|write|create|install|deploy|send|delete|fix|run|start|stop)", re.I,
 )
+_RESOLUTION_AUTHORITY = re.compile(
+    r"(?:递归|继续|立即|直接|直到|直至).{0,24}(?:解决|修好|恢复|生效)", re.I,
+)
 _DESTRUCTIVE = re.compile(
     r"(?:^|\s)(?:rm\s+-[a-z]*r[a-z]*|git\s+reset\s+--hard|git\s+clean\s+-[a-z]*f|"
     r"sudo\s+|launchctl\s+bootout|kill\s+-9)(?:\s|$)", re.I,
@@ -220,7 +223,10 @@ class FullStackRuntime:
         reason = "laap_permission_policy"
         command = str(args.get("cmd") or args.get("command") or "")
         mutating = resource in {"shell", "file:write", "file:delete", "network"}
-        explicit_user_authority = bool(_MUTATING_WORDS.search(user_intent or ""))
+        explicit_user_authority = bool(
+            _MUTATING_WORDS.search(user_intent or "")
+            or _RESOLUTION_AUTHORITY.search(user_intent or "")
+        )
         host_guard_required = False
 
         if resource == "shell" and _DESTRUCTIVE.search(command):

@@ -29,6 +29,27 @@ def test_action_gate_delegates_explicit_workspace_write_to_hana_scope(tmp_path):
     assert result["host_guard_required"] is True
 
 
+def test_action_gate_recognizes_explicit_resolution_authority(tmp_path):
+    rt = runtime(tmp_path)
+    result = rt.evaluate_action(
+        "edit", {"path": "/workspace/a"},
+        user_intent="递归修复直到真实回复可见并解决问题",
+    )
+    assert result["allowed"] is True
+    assert result["decision"] == "restricted"
+    assert result["explicit_user_authority"] is True
+
+
+def test_action_gate_does_not_treat_resolution_discussion_as_authority(tmp_path):
+    rt = runtime(tmp_path)
+    result = rt.evaluate_action(
+        "edit", {"path": "/workspace/a"},
+        user_intent="分析这个问题为什么没有解决",
+    )
+    assert result["allowed"] is False
+    assert result["decision"] == "confirm"
+
+
 def test_action_gate_blocks_destructive_shell(tmp_path):
     rt = runtime(tmp_path)
     result = rt.evaluate_action("exec_command", {"cmd": "rm -rf /"}, user_intent="运行测试")
