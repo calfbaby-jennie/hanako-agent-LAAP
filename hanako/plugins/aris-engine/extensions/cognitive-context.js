@@ -186,6 +186,7 @@ export default function (pi) {
         }
         if (pendingTurn) {
           pendingTurn.traceId = preflight?.ao_decision?.trace_id || null;
+          pendingTurn.aoAction = preflight?.ao_decision?.action || null;
           pendingTurn.inputEventId = preflight?.perception?.canonical_event_id || null;
           pendingTurn.cognitiveContext = String(preflight?.context || '');
           pendingTurn.psiComplete = Boolean(preflight?.ok);
@@ -257,6 +258,30 @@ export default function (pi) {
     return {
       messages: injectTurnScopedCognitiveContext(event.messages, parts.join('\n\n')),
     };
+  });
+
+  // LAAP action layer: every tool is evaluated before execution. The sidecar
+  // owns policy and audit; an unreachable gate blocks in strict mode so an
+  // LLM can never bypass the PSI brain to create side effects.
+  pi.on('tool_call', async (event, ctx) => {
+    const sessionId = pendingTurn?.sessionId || sessionIdentity(ctx);
+    const gate = await sidecarRequest('POST', '/action/preflight', {
+      tool: String(event?.toolName || 'unknown'),
+      args: event?.input || {},
+      session_id: sessionId,
+      turn_id: pendingTurn?.turnId || '',
+      trace_id: pendingTurn?.traceId || '',
+      user_intent: pendingTurn?.input || '',
+      psi_action: pendingTurn?.aoAction || '',
+    }, 15000);
+    if (!gate || gate.allowed !== true) {
+      const decision = gate?.decision || 'unreachable';
+      const reason = gate?.reason || 'LAAP action gate unavailable';
+      if (PSI_STRICT || decision === 'deny' || decision === 'confirm') {
+        return { block: true, reason: `[LAAP ${decision}] ${reason}` };
+      }
+    }
+    return undefined;
   });
 
   pi.on('tool_result', (event) => {

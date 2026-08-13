@@ -113,7 +113,7 @@ identity_registry.json
 sign-key*.json
 
 # LAAP runtime
-memory_vault/
+/memory_vault/
 state/
 aris-sidecar.lock
 aris-sidecar.token
