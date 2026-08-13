@@ -284,16 +284,19 @@ export default function (pi) {
       tool_results: turn.toolResults,
     }, 75000);
     const reviewApproved = Boolean(review?.approved);
+    // Never turn gate diagnostics into assistant prose. A rejected/unreachable
+    // review is carried only in psiReview metadata and the transport error path,
+    // preventing recursive "the gate reviews its own error" contamination.
     const visibleResponse = reviewApproved
       ? String(review?.rewritten_response || response)
-      : `[PSI 发送门已阻止回复] ${(review?.issues || ['review_unreachable']).join(', ')}`;
+      : '';
     turn.psiReview = review;
     pendingTurn = null;
     const success = reviewApproved && stopReason !== 'error'
       && !turn.toolResults.some((item) => item.status === 'error');
     await sidecarRequest('POST', '/after_turn', {
       user_input: turn.input,
-      response: visibleResponse.slice(0, 24000),
+      response: reviewApproved ? visibleResponse.slice(0, 24000) : '',
       success: success ? 1.0 : 0.0,
       tool_results: turn.toolResults,
       session_id: turn.sessionId,
@@ -305,9 +308,11 @@ export default function (pi) {
     return {
       message: {
         ...event.message,
-        content: review?.rewritten_response || !reviewApproved
-          ? [{ type: 'text', text: visibleResponse }]
-          : event.message.content,
+        content: reviewApproved
+          ? (review?.rewritten_response
+            ? [{ type: 'text', text: visibleResponse }]
+            : event.message.content)
+          : [],
         psiReview: {
           approved: reviewApproved,
           issues: review?.issues || ['review_unreachable'],

@@ -22,6 +22,18 @@ describe("PSI output transport gate", () => {
     expect(psiReviewResult(message)).toEqual({ present: true, approved: true, issues: [] });
   });
 
+  it("preserves an explicit rejection as metadata rather than releasable prose", () => {
+    expect(psiReviewResult({
+      role: "assistant",
+      content: [],
+      psiReview: { approved: false, issues: ["review_unreachable"] },
+    })).toEqual({
+      present: true,
+      approved: false,
+      issues: ["review_unreachable"],
+    });
+  });
+
   it("fails closed when review metadata is missing", () => {
     expect(psiReviewResult({ role: "assistant", content: "draft" })).toEqual({
       present: false,

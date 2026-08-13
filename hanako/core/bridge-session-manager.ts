@@ -1183,12 +1183,14 @@ export class BridgeSessionManager {
           const releasable = finalizedAssistantText(event.message);
           psiDraftText = "";
           psiFinalized = true;
-          if (review.present) {
+          if (review.present && review.approved) {
             capturedText = releasable;
             try { if (releasable) opts.onDelta?.(releasable, releasable); } catch {}
           } else {
             capturedText = "";
-            providerErrorMessage = "PSI output gate rejected reply: missing review result";
+            providerErrorMessage = review.present
+              ? `PSI output gate rejected reply: ${review.issues.join(", ") || "review_rejected"}`
+              : "PSI output gate rejected reply: missing review result";
           }
         }
         const messageEndError = getProviderMessageEndError(event);

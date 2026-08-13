@@ -1483,8 +1483,15 @@ export function createChatRoute(engine: any, hub: any, { upgradeWebSocket }: any
           const releasable = finalizedAssistantText(event.message);
           ss.psiPendingText = "";
           ss.psiReleaseSeen = true;
-          if (review.present && releasable) {
+          if (review.present && review.approved && releasable) {
             emitVisibleTextDelta(releasable);
+          } else if (review.present && !review.approved) {
+            ss.hasError = true;
+            broadcast({
+              type: "error",
+              message: `PSI 输出门拒绝放行：${review.issues.join(", ") || "review_rejected"}`,
+              sessionPath,
+            });
           } else if (!review.present) {
             ss.hasError = true;
             broadcast({ type: "error", message: "PSI 输出门拒绝放行：缺少发送前审议结果", sessionPath });

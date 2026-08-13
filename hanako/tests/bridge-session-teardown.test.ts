@@ -396,6 +396,38 @@ describe("BridgeSessionManager teardown", () => {
     expect(onDelta).toHaveBeenCalledWith("审议后正文", "审议后正文");
   });
 
+  it("fails closed for Aris bridge output when PSI explicitly rejects the draft", async () => {
+    const agent = makeAgent(rootDir, "hanako") as any;
+    agent.agentName = "aris";
+    const mgrPath = path.join(agent.sessionDir, "bridge", "owner", "psi-rejected.jsonl");
+    const manager = new BridgeSessionManager(makeDeps(agent));
+    sessionManagerCreateMock.mockReturnValue({ getSessionFile: () => mgrPath });
+    const onDelta = vi.fn();
+    const subscribers = [];
+    const session = {
+      subscribe: vi.fn((fn) => { subscribers.push(fn); return () => {}; }),
+      prompt: vi.fn(async () => {
+        for (const fn of subscribers) {
+          fn({ type: "message_update", assistantMessageEvent: { type: "text_delta", delta: "draft" } });
+          fn({ type: "message_end", message: {
+            role: "assistant", stopReason: "stop", content: [],
+            psiReview: { approved: false, issues: ["review_unreachable"] },
+          } });
+        }
+      }),
+      sessionManager: { getSessionFile: () => mgrPath },
+    };
+    createAgentSessionMock.mockResolvedValue({ session });
+
+    await expect(manager.executeExternalMessage("hello", "psi-rejected", null, {
+      agentId: "hanako", onDelta,
+    })).resolves.toMatchObject({
+      text: null,
+      error: "PSI output gate rejected reply: review_unreachable",
+    });
+    expect(onDelta).not.toHaveBeenCalled();
+  });
+
   it("fails closed for Aris bridge output when PSI review metadata is missing", async () => {
     const agent = makeAgent(rootDir, "hanako") as any;
     agent.agentName = "aris";
