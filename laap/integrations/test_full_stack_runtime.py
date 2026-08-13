@@ -18,7 +18,7 @@ def test_action_gate_requires_turn_authority_for_mutation(tmp_path):
     result = rt.evaluate_action("edit", {"path": "/workspace/a"}, user_intent="看看这个文件")
     assert result["allowed"] is False
     assert result["decision"] == "confirm"
-    assert result["reason"] == "mutation_not_explicitly_authorized_in_turn"
+    assert result["reason"] == "mutation_not_authorized_for_task"
 
 
 def test_action_gate_delegates_explicit_workspace_write_to_hana_scope(tmp_path):
@@ -48,6 +48,73 @@ def test_action_gate_does_not_treat_resolution_discussion_as_authority(tmp_path)
     )
     assert result["allowed"] is False
     assert result["decision"] == "confirm"
+
+
+def test_action_gate_allows_conservative_read_only_shell_without_authority(tmp_path):
+    rt = runtime(tmp_path)
+    for command in (
+        "git status --short --branch",
+        "docker info --format '{{.ServerVersion}}'",
+        "lsof -nP -iTCP -sTCP:LISTEN | grep 11521",
+        "curl -fsS http://127.0.0.1:11521/health",
+        "launchctl print gui/501/com.aris.laap-bridge",
+    ):
+        result = rt.evaluate_action("exec_command", {"cmd": command}, user_intent="检查状态")
+        assert result["allowed"] is True, command
+        assert result["decision"] == "allow", command
+        assert result["reason"] == "read_only_shell", command
+
+
+def test_action_gate_does_not_misclassify_mutating_shell_as_read_only(tmp_path):
+    rt = runtime(tmp_path)
+    for command in (
+        "git branch new-branch",
+        "curl -X POST http://127.0.0.1/action",
+        "sed -i '' 's/a/b/' file.txt",
+        "cat source > target",
+        "find . -delete",
+        "find . -exec rm {} ;",
+        "env python3 repair.py",
+        "git branch -D old-branch",
+        "plutil -replace Key -string value file.plist",
+    ):
+        result = rt.evaluate_action("exec_command", {"cmd": command}, user_intent="检查状态")
+        assert result["allowed"] is False, command
+        assert result["decision"] == "confirm", command
+
+
+def test_action_gate_persists_scoped_task_authority(tmp_path):
+    first = runtime(tmp_path)
+    granted = first.evaluate_action(
+        "edit", {"path": "/workspace/a"}, session_id="session-1",
+        user_intent="授权你自主完成这四项的修复",
+    )
+    assert granted["allowed"] is True
+    restored = FullStackRuntime(tmp_path)
+    continued = restored.evaluate_action(
+        "exec_command", {"cmd": "python3 repair.py"}, session_id="session-1",
+        user_intent="继续处理",
+    )
+    assert continued["allowed"] is True
+    assert continued["continuing_authority"] is True
+    unrelated = restored.evaluate_action(
+        "exec_command", {"cmd": "python3 repair.py"}, session_id="session-2",
+        user_intent="看看情况",
+    )
+    assert unrelated["allowed"] is False
+
+
+def test_action_gate_revokes_persisted_authority(tmp_path):
+    rt = runtime(tmp_path)
+    rt.evaluate_action(
+        "edit", {"path": "/workspace/a"}, session_id="session-1",
+        user_intent="授权你自主完成修复",
+    )
+    revoked = rt.evaluate_action(
+        "exec_command", {"cmd": "python3 repair.py"}, session_id="session-1",
+        user_intent="暂停自主执行并撤销授权",
+    )
+    assert revoked["allowed"] is False
 
 
 def test_action_gate_blocks_destructive_shell(tmp_path):

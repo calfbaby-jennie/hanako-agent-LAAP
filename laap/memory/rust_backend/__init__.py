@@ -15,8 +15,11 @@ RustMemoryEngine = None
 RustExperienceGraph = None
 RustSessionManager = None
 
-# Add Rust build output to path
+# Add Rust build output to path. Operators may keep the native artifact outside
+# the repository; LAAP_RUST_LIB_DIR is the stable deployment contract.
+_configured_rust_dir = os.environ.get("LAAP_RUST_LIB_DIR", "").strip()
 _rust_paths = [
+    *([Path(_configured_rust_dir).expanduser()] if _configured_rust_dir else []),
     # Development build (debug)
     Path(__file__).parent.parent.parent.parent / "core" / "target" / "debug",
     # Release build

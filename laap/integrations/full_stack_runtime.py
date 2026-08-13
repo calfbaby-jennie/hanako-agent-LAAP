@@ -11,6 +11,7 @@ from __future__ import annotations
 import asyncio
 import json
 import re
+import shlex
 import threading
 import time
 from collections import deque
@@ -41,11 +42,71 @@ _MUTATING_WORDS = re.compile(
 _RESOLUTION_AUTHORITY = re.compile(
     r"(?:递归|继续|立即|直接|直到|直至).{0,24}(?:解决|修好|恢复|生效)", re.I,
 )
+_TASK_AUTHORITY = re.compile(
+    r"(?:授权|由你|自主).{0,40}(?:完成|修复|处理|执行|拉起|重启|恢复)", re.I,
+)
+_REVOKE_AUTHORITY = re.compile(r"(?:撤销|取消|暂停|停止).{0,16}(?:授权|自主执行)", re.I)
 _DESTRUCTIVE = re.compile(
     r"(?:^|\s)(?:rm\s+-[a-z]*r[a-z]*|git\s+reset\s+--hard|git\s+clean\s+-[a-z]*f|"
     r"sudo\s+|launchctl\s+bootout|kill\s+-9)(?:\s|$)", re.I,
 )
 _SECRET_KEYS = re.compile(r"(?:token|secret|password|api[_-]?key|authorization)", re.I)
+_READ_ONLY_COMMANDS = {
+    "cat", "head", "tail", "grep", "egrep", "fgrep", "ls", "stat", "file",
+    "wc", "sort", "uniq", "cut", "tr", "lsof", "ps", "pgrep", "pwd",
+    "which", "type", "printenv", "id", "whoami", "uname", "date",
+}
+_READ_ONLY_SUBCOMMANDS = {
+    "git": {"status", "diff", "log", "show", "rev-parse", "ls-files", "branch"},
+    "docker": {"info", "inspect", "images", "ps", "version", "logs", "stats"},
+    "launchctl": {"print", "list", "procinfo"},
+}
+
+
+def _is_read_only_shell(command: str) -> bool:
+    """Conservatively recognize shell probes that cannot intentionally mutate state."""
+    if not command.strip() or re.search(r"(?:>|<|`|\$\(|\btee\b|\bxargs\b)", command):
+        return False
+    if re.search(r"(?:^|\s)(?:-[^-\s]*i|--in-place)(?:\s|$)", command):
+        return False
+    for segment in re.split(r"\s*(?:\|\||&&|;|\|)\s*", command):
+        if not segment.strip():
+            continue
+        try:
+            words = shlex.split(segment)
+        except ValueError:
+            return False
+        while words and re.match(r"^[A-Za-z_][A-Za-z0-9_]*=.*", words[0]):
+            words.pop(0)
+        if not words:
+            return False
+        program = Path(words[0]).name
+        if program == "curl":
+            if any(x in words for x in ("-d", "--data", "--data-raw", "-F", "--form", "-T", "--upload-file")):
+                return False
+            if "-X" in words:
+                method_index = words.index("-X") + 1
+                if method_index >= len(words) or words[method_index].upper() != "GET":
+                    return False
+            continue
+        if program == "find":
+            if any(x in words for x in ("-delete", "-exec", "-execdir", "-ok", "-okdir", "-fprint", "-fprintf")):
+                return False
+            continue
+        if program == "plutil":
+            if not any(x in words for x in ("-p", "-lint")):
+                return False
+            continue
+        if program in _READ_ONLY_COMMANDS:
+            continue
+        allowed = _READ_ONLY_SUBCOMMANDS.get(program)
+        if not allowed or len(words) < 2 or words[1] not in allowed:
+            return False
+        if program == "git" and words[1] == "branch":
+            safe_branch_flags = {"--list", "-a", "--all", "-r", "--remotes", "-v", "-vv", "--show-current"}
+            if any(x not in safe_branch_flags for x in words[2:]):
+                return False
+    return True
 
 
 class FullStackRuntime:
@@ -56,6 +117,7 @@ class FullStackRuntime:
         self.state_dir.mkdir(parents=True, exist_ok=True)
         self.audit_path = self.state_dir / "action_gate_audit.jsonl"
         self.runtime_path = self.state_dir / "full_stack_runtime.json"
+        self.authorization_path = self.state_dir / "action_authorization_grants.json"
         self.rsi_audit_path = Path.home() / ".laap" / "true_rsi" / "audit.jsonl"
         self.permission = PermissionEnforcer()
         self.events = EventBus()
@@ -69,6 +131,7 @@ class FullStackRuntime:
         self._colony_receipts: deque[dict[str, Any]] = deque(maxlen=200)
         self._last_multiagent: dict[str, Any] = {}
         self._last_peripheral: dict[str, Any] = {}
+        self._authorization_grants: dict[str, dict[str, Any]] = {}
         self._load_state()
 
         self._loop = asyncio.new_event_loop()
@@ -101,6 +164,21 @@ class FullStackRuntime:
                 self._turns.extend(state.get("turns") or [])
             except Exception:
                 pass
+        if self.authorization_path.exists():
+            try:
+                grants = json.loads(self.authorization_path.read_text(encoding="utf-8"))
+                now = time.time()
+                self._authorization_grants = {
+                    key: value for key, value in grants.items()
+                    if float(value.get("expires_at", 0)) > now
+                }
+            except Exception:
+                self._authorization_grants = {}
+
+    def _save_authorizations(self) -> None:
+        tmp = self.authorization_path.with_suffix(".tmp")
+        tmp.write_text(json.dumps(self._authorization_grants, ensure_ascii=False, indent=2), encoding="utf-8")
+        tmp.replace(self.authorization_path)
 
     def _save_state(self) -> None:
         payload = {
@@ -222,17 +300,43 @@ class FullStackRuntime:
         access = self.permission.check(resource, args)
         reason = "laap_permission_policy"
         command = str(args.get("cmd") or args.get("command") or "")
-        mutating = resource in {"shell", "file:write", "file:delete", "network"}
-        explicit_user_authority = bool(
+        read_only_shell = resource == "shell" and _is_read_only_shell(command)
+        if read_only_shell:
+            resource = "shell:read"
+        now = time.time()
+        grant_key = session_id or "__local__"
+        revoking_authority = bool(_REVOKE_AUTHORITY.search(user_intent or ""))
+        if revoking_authority:
+            self._authorization_grants.pop(grant_key, None)
+            self._save_authorizations()
+        explicit_user_authority = not revoking_authority and bool(
             _MUTATING_WORDS.search(user_intent or "")
             or _RESOLUTION_AUTHORITY.search(user_intent or "")
+            or _TASK_AUTHORITY.search(user_intent or "")
         )
+        if not revoking_authority and _TASK_AUTHORITY.search(user_intent or ""):
+            self._authorization_grants[grant_key] = {
+                "scope": "local_mutation", "granted_at": now,
+                "expires_at": now + 4 * 3600,
+                "source_turn_id": turn_id,
+            }
+            self._save_authorizations()
+        active_grant = self._authorization_grants.get(grant_key) or {}
+        continuing_authority = (
+            active_grant.get("scope") == "local_mutation"
+            and float(active_grant.get("expires_at", 0)) > now
+            and resource in {"shell", "file:write"}
+        )
+        authorized = explicit_user_authority or continuing_authority
+        mutating = resource in {"shell", "file:write", "file:delete", "network"}
         host_guard_required = False
 
         if resource == "shell" and _DESTRUCTIVE.search(command):
             access, reason = AccessLevel.DENY, "destructive_shell_pattern"
-        elif mutating and not explicit_user_authority:
-            access, reason = AccessLevel.CONFIRM, "mutation_not_explicitly_authorized_in_turn"
+        elif resource == "shell:read":
+            access, reason = AccessLevel.ALLOW, "read_only_shell"
+        elif mutating and not authorized:
+            access, reason = AccessLevel.CONFIRM, "mutation_not_authorized_for_task"
         elif resource == "shell":
             access, reason, host_guard_required = AccessLevel.RESTRICTED, "hana_sandbox_required", True
         elif resource == "network":
@@ -257,7 +361,9 @@ class FullStackRuntime:
             "trace_id": trace_id,
             "psi_action": psi_action,
             "explicit_user_authority": explicit_user_authority,
-            "timestamp": time.time(),
+            "continuing_authority": continuing_authority,
+            "authorization_scope": active_grant.get("scope"),
+            "timestamp": now,
             "args": self._redacted(args),
         }
         self._audit.append(decision)
