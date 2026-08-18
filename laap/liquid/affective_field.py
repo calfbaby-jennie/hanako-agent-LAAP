@@ -112,12 +112,16 @@ class LiquidAffectiveField:
 
         return new_h
 
+        # 解码增益：LTC 驱动项经半隐式欧拉稀释后峰值偏低，
+    # 在读出层放大而不改 ODE 动力学（有界性证明不受影响）
+    _DECODE_GAIN = 3.0
+
     def decode_affective_state(self) -> dict:
         """从 h(t) 解码 5 维情感状态，值域 [-1, 1]（tanh 压缩）。"""
         result = {}
         for name in self.dimension_names:
             h_mean = float(np.mean(self._h[name]))
-            result[name] = float(np.tanh(h_mean))  # tanh 压缩到 [-1, 1]
+            result[name] = float(np.tanh(h_mean * self._DECODE_GAIN))  # 增益 + tanh 压缩到 [-1, 1]
         return result
 
     def get_tau_base(self, dimension: str) -> float:

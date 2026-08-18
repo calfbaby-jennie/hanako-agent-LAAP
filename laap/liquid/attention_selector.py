@@ -20,6 +20,7 @@ from typing import Dict, List, Optional, Tuple
 import numpy as np
 
 from laap.liquid.neurons import NCPCircuit
+from laap.liquid.neurons import _xavier_init as _xavier_init_raw
 
 logger = logging.getLogger("laap.liquid.attention_selector")
 
@@ -30,7 +31,11 @@ FOCUS_NAMES: List[str] = [
 ]
 
 # 平滑系数：new_dist = α * softmax + (1-α) * last_dist，避免突变
-_SMOOTH_ALPHA = 0.7
+_SMOOTH_ALPHA = 0.5
+
+# 温度缩放：softmax 前乘以温度系数，让分布更尖锐
+# T > 1 → 更尖锐（聚焦更强），T < 1 → 更平坦（更均匀）
+_SOFTMAX_TEMPERATURE = 2.0
 
 
 def _softmax(x: np.ndarray) -> np.ndarray:
@@ -134,20 +139,32 @@ class LiquidAttentionSelector:
         # 命令神经元 softmax → 注意力分布
         cmd_acts = self._ncp.get_command_activations()  # shape=(4,)
 
-        # 将 4 个命令神经元映射到 num_focus 维分布
-        # 如果 num_focus > 4，用线性投影；如果 <= 4，用前 num_focus 个
-        if self.num_focus <= len(cmd_acts):
-            raw = cmd_acts[: self.num_focus]
-        else:
-            # 用重复 + 噪声扩展到 num_focus 维
-            repeats = int(np.ceil(self.num_focus / len(cmd_acts)))
-            raw = np.tile(cmd_acts, repeats)[: self.num_focus]
+        # 将 4 个命令神经元映射到 num_focus(8) 维分布
+        # 用可学习投影矩阵 W_cmd2focus (num_focus, 4) 替代 tile 平铺
+        # 初始化为 Xavier，让每个焦点从不同角度组合命令神经元信号
+        if not hasattr(self, '_W_cmd2focus') or self._W_cmd2focus is None:
+            rng = np.random.default_rng(42)
+            n_in = len(cmd_acts)
+            self._W_cmd2focus = _xavier_init_raw((self.num_focus, n_in), rng)
+            logger.info(f"[INFO] W_cmd2focus 初始化: shape={self._W_cmd2focus.shape}")
 
-        softmax_dist = _softmax(raw)
+        # 标准化命令神经元激活：零均值单位方差 × sharpness
+        # NCP 的 CfC 动力学在初始权重下激活值很小（~0.003），
+        # 直接 softmax 会导致近似均匀分布。标准化后相对差异被保留且放大，
+        # 让 softmax 产生有意义的非均匀分布。只改读出层，不碰 ODE 动力学。
+        cmd_mean = float(np.mean(cmd_acts))
+        cmd_std = float(np.std(cmd_acts)) + 1e-8
+        cmd_normalized = (cmd_acts - cmd_mean) / cmd_std * 3.0  # sharpness=3.0
+
+        raw = self._W_cmd2focus @ cmd_normalized  # (num_focus,) 每个焦点独立组合
+
+        # 温度缩放：放大焦点之间的差异
+        raw_scaled = raw * _SOFTMAX_TEMPERATURE
+        softmax_dist = _softmax(raw_scaled)
 
         # 平滑：避免突变
         self.last_distribution = _SMOOTH_ALPHA * softmax_dist + (1.0 - _SMOOTH_ALPHA) * self.last_distribution
-        # 归一化（平滑后可能微小偏移）
+        # 归一化
         self.last_distribution = self.last_distribution / np.sum(self.last_distribution)
 
         self._last_inputs = x
